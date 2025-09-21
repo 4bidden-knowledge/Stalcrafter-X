@@ -63,7 +63,6 @@ async function main(){
     }
   }
 
-  await fs.mkdir("docs", { recursive: true });
   await fs.writeFile(OUTPUT_PATH, JSON.stringify(out,null,2), "utf8");
   console.log("Wrote", OUTPUT_PATH);
 }
