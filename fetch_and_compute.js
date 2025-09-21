@@ -16,7 +16,7 @@ const ITEMS = {
 };
 
 const REGION = "na";
-const OUTPUT_PATH = "docs/prices.json";
+const OUTPUT_PATH = "prices.json";
 
 function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 
