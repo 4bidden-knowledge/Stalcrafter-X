@@ -8,11 +8,11 @@ import fetch from "node-fetch";
 const ITEMS = {
   // friendlyKey: item_id_on_stalcraftdb
   "adv_spare": "y3nmw",    // example; replace with real NA IDs
-  "std_spare": "xxxxxx",
-  "cheap_spare": "yyyyyy",
-  "adv_tool": "zzzzzz",
-  "std_tool": "aaaaaa",
-  "cheap_tool": "bbbbb"
+  "std_spare": "l0og1",
+  "cheap_spare": "j0w96",
+  "adv_tool": "4q7pl",
+  "std_tool": "qjqw9",
+  "cheap_tool": "wjlrd"
 };
 
 const REGION = "na";
