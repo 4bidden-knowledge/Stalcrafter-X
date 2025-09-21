@@ -20,8 +20,8 @@ const OUTPUT_PATH = "prices.json";
 
 function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 
-async function fetchHistory(id){
-  const url = `https://stalcraftdb.net/api/v1/auctions/history/${id}?region=${REGION}`;
+async function fetchHistory(id){ 
+  const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=0`;
   const resp = await fetch(url, { headers: { "User-Agent": "stalcraft-poller/1.0" }});
   if(!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
   return resp.json();
