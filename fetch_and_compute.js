@@ -55,7 +55,7 @@ async function main(){
         sampleCountLast24h: (Array.isArray(json.prices)? json.prices.filter(p => new Date(p.time).getTime() >= (Date.now()-24*60*60*1000)).length : 0)
       };
       // stagger requests to be polite / avoid rate limits
-      await sleep(1500 + Math.floor(Math.random()*1500));
+      await sleep(5500 + Math.floor(Math.random()*1500));
     }catch(err){
       out.prices[key] = { id, error: String(err) };
       // continue to next item
