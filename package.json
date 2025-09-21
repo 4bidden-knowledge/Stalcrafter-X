@@ -1,0 +1,11 @@
+{
+  "name": "stalcraft-poller",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "node-fetch": "^3.4.0"
+  },
+  "scripts": {
+    "start": "node fetch_and_compute.js"
+  }
+}

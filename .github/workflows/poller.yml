@@ -1,0 +1,39 @@
+name: Poll StalcraftDB prices
+
+on:
+  schedule:
+    # run at 00:00 and 12:00 UTC (every 12 hours)
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run poller
+        run: npm start
+
+      - name: Commit and push prices.json
+        run: |
+          git config user.name "stalcraft-poller-bot"
+          git config user.email "noreply+stalcraft@users.noreply.github.com"
+          git add docs/prices.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update prices.json (auto)"
+            git push
+          fi
