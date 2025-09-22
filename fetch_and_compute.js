@@ -15,7 +15,8 @@ const ITEMS = {
   "str_boar": "5lo3o",
   "polymer":  "jl26",
   "water_carrier": "m22k",
-  "plastic_bottle": "pry2"
+  "plastic_bottle": "pry2",
+  "ammonia": "40vn"
 };
 
 const REGION = process.env.REGION || "na";
