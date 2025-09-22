@@ -49,13 +49,14 @@ function mad(arr, med) {
     return median(diffs);
 }
 
-// ---- fetch all pages for a given item ----
+// ---- fetch all pages for a given item (max 2 pages) ----
 async function fetchAllHistory(id) {
     let allPrices = [];
     let page = 0;
     const cutoff = Date.now() - (HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000);
+    const MAX_PAGES = 2; // Only look at first 2 pages
 
-    while (true) {
+    while (page < MAX_PAGES) {
         const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
         const resp = await fetch(url, { headers: { "User-Agent": "stalcraft-poller/1.0" } } );
         if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
@@ -76,27 +77,51 @@ async function fetchAllHistory(id) {
         }
 
         page++;
-        await sleep(500); // Be nice to the API
+        
+        // Add delay between pages with randomization
+        if (page < MAX_PAGES) {
+            await sleep(500 + Math.floor(Math.random() * 300)); // 0.5-0.8 seconds between pages
+        }
     }
 
     return allPrices;
 }
 
+// ---- FIXED: compute weighted average with auto-detect per-unit vs stack-total ----
+function compute24hAverageWeighted(rawData) {
+    // Handle the case where rawData is the full response object or just an array
+    let rawArray;
+    if (rawData && rawData.prices && Array.isArray(rawData.prices)) {
+        rawArray = rawData.prices;
+    } else if (Array.isArray(rawData)) {
+        rawArray = rawData;
+    } else {
+        return {
+            avg24h: null, 
+            sampleCount: 0, 
+            min: null, 
+            max: null,
+            error: "Invalid data format"
+        };
+    }
 
-// ---- compute weighted average with auto-detect per-unit vs stack-total ----
-function compute24hAverageWeighted(rawArray) {
-    if (!Array.isArray(rawArray) || rawArray.length === 0) return {
+    if (rawArray.length === 0) return {
         avg24h: null, sampleCount: 0, min: null, max: null
     };
 
-    // *** FIX: Use the same timespan constant as the fetcher ***
     const cutoff = Date.now() - (HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000);
 
     const normalized = rawArray.map(p => ({
         ts: parseTimestampToMs(p.time),
         price: Number(p.price),
         amount: Number(p.amount || 1)
-    })).filter(p => !Number.isNaN(p.ts) && p.ts >= cutoff && Number.isFinite(p.price) && p.amount > 0);
+    })).filter(p => 
+        !Number.isNaN(p.ts) && 
+        p.ts >= cutoff && 
+        Number.isFinite(p.price) && 
+        p.price > 0 &&
+        p.amount > 0
+    );
 
     if (normalized.length === 0) return {
         avg24h: null, sampleCount: 0, min: null, max: null
@@ -143,7 +168,8 @@ function compute24hAverageWeighted(rawArray) {
         medianCandidateA: Math.round(medA || 0),
         medianCandidateB: Math.round(medB || 0),
         relMadA: relA,
-        relMadB: relB
+        relMadB: relB,
+        totalUnits: totalUnits
     };
 }
 
@@ -168,7 +194,8 @@ async function main() {
                     medianCandidateA: result.medianCandidateA,
                     medianCandidateB: result.medianCandidateB,
                     relMadA: result.relMadA,
-                    relMadB: result.relMadB
+                    relMadB: result.relMadB,
+                    totalUnits: result.totalUnits
                 }
             };
 
@@ -177,7 +204,7 @@ async function main() {
                 console.log(`SAMPLE raw entries (fetched ${rawPrices.length}):`, rawPrices.slice(0, 5));
             }
 
-            await sleep(1200 + Math.floor(Math.random() * 800));
+            await sleep(5500 + Math.floor(Math.random() * 1500));
         } catch (err) {
             out.prices[key] = { id, error: String(err) };
             console.error(`Error for ${key} (${id}):`, err?.toString?.() || err);
