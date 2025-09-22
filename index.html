@@ -6,21 +6,20 @@
 <title>Stalcraft Crafting Calculator</title>
 <style>
   :root{
-    --bg: #eef2f5;
+    --bg: #f0f3f6;
     --card: #f7fafc;
     --muted: #6b7280;
     --text: #0f1724;
-    --accent: #2563eb;
+    --accent: #2b6cb0;
     --shadow: rgba(16,24,40,0.06);
+    --warn: #b45309;
   }
   html,body{height:100%}
   body{
     font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-    margin:20px;
+    margin:18px;
     background:var(--bg);
     color:var(--text);
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
   }
   header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   h1{font-size:20px;margin:0}
@@ -35,29 +34,32 @@
   table{width:100%;border-collapse:collapse;background:transparent}
   td,th{padding:10px;border-bottom:1px solid rgba(15,23,36,0.06);text-align:left}
   input[type=number]{width:96px;padding:6px;border-radius:6px;border:1px solid rgba(15,23,36,0.08)}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .muted{color:var(--muted);font-size:13px}
   .right{margin-left:auto}
   .big{font-size:1.05rem;font-weight:600}
   footer{margin-top:14px;color:var(--muted);font-size:13px}
   button{
     background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;
-    cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,0.12)
+    cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(43,108,176,0.12)
   }
-  button:active{transform:translateY(1px)}
+  .banner { padding:10px;border-radius:8px;margin-bottom:10px;display:none }
+  .banner.error { background:#fff4e5;color:var(--warn);border:1px solid rgba(180,83,9,0.12) }
   @media(min-width:900px){ .grid{grid-template-columns:1fr 380px} }
+  pre.debug { white-space:pre-wrap; max-height:200px; overflow:auto; background:#0b1220;color:#fff;padding:10px;border-radius:6px;font-size:13px }
 </style>
 </head>
 <body>
 <header>
   <h1>Stalcraft Crafting Calculator</h1>
-  <div class="muted">Uses site prices (7-day average)</div>
+  <div class="muted">7-day weighted averages (falls back to 24h)</div>
 </header>
+
+<div id="banner" class="banner error"></div>
 
 <main class="grid">
   <div class="card">
-    <div class="row" style="margin-bottom:10px;">
-      <div class="muted">If 7-day is missing the UI will use 24-hour average.</div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+      <div class="muted">Data source: <span id="dataPath">—</span></div>
       <div class="right"><button id="refreshBtn">Refresh prices</button></div>
     </div>
 
@@ -81,9 +83,31 @@
   <div class="card">
     <h3 style="margin-top:0">How it calculates</h3>
     <p class="muted" style="margin:0 0 10px 0">
-      For each item the calculator uses the <strong>7-day weighted per-unit average</strong> (falls back to 24-hour if no 7-day data). Tools are treated the same as parts. Premium conversion:
+      Uses 7-day weighted per-unit averages where available; otherwise the 24-hour weighted per-unit average.
     </p>
     <ul class="muted" style="margin-top:8px">
       <li><strong>Advanced</strong> → divide by <strong>800</strong></li>
       <li><strong>Standard</strong> → divide by <strong>600</strong></li>
-      <li><strong>Cheap</strong> → divide by <s
+      <li><strong>Cheap</strong> → divide by <strong>400</strong></li>
+    </ul>
+    <div style="margin-top:10px">
+      <div class="muted">Raw fetched JSON (for debugging):</div>
+      <pre id="rawDebug" class="debug" style="display:none"></pre>
+    </div>
+  </div>
+</main>
+
+<footer class="muted">Drop this file next to <code>prices.json</code>.</footer>
+
+<script>
+(async function(){
+  const ITEMS = [
+    { key: "adv_spare", label: "Advanced spare", id: "y3nmw", divisor: 800 },
+    { key: "std_spare", label: "Standard spare", id: "l0og1", divisor: 600 },
+    { key: "cheap_spare", label: "Cheap spare", id: "j0w96", divisor: 400 },
+    { key: "adv_tool", label: "Advanced tool", id: "4q7pl", divisor: 800 },
+    { key: "std_tool", label: "Standard tool", id: "qjqw9", divisor: 600 },
+    { key: "cheap_tool", label: "Cheap tool", id: "wjlrd", divisor: 400 }
+  ];
+
+  co
