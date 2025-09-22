@@ -11,8 +11,8 @@ const ITEMS = {
   "cheap_spare": "j0w96",
   "adv_tool": "4q7pl",
   "std_tool": "qjqw9",
-  "cheap_tool": "wjlrd"
-  "str_boar": "5lo3o"
+  "cheap_tool": "wjlrd",
+  "str_boar": "5lo3o",
   "polymer":  "jl26"
 };
 
