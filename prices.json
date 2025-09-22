@@ -1,12 +1,12 @@
 {
-  "updated": "2025-09-22T14:11:55.728Z",
+  "updated": "2025-09-22T14:25:43.640Z",
   "region": "na",
   "prices": {
     "adv_spare": {
       "id": "y3nmw",
-      "avg24h": 74615,
-      "sampleCountLast24h": 140,
-      "min24h": 58571,
+      "avg24h": 74673,
+      "sampleCountLast24h": 139,
+      "min24h": 60000,
       "max24h": 90889,
       "avg7d": 77714,
       "sampleCountLast7d": 889,
@@ -40,15 +40,15 @@
     },
     "adv_tool": {
       "id": "4q7pl",
-      "avg24h": 78184,
-      "sampleCountLast24h": 62,
+      "avg24h": 77743,
+      "sampleCountLast24h": 63,
       "min24h": 50000,
       "max24h": 96429,
-      "avg7d": 79843,
-      "sampleCountLast7d": 510,
+      "avg7d": 79764,
+      "sampleCountLast7d": 511,
       "min7d": 43000,
       "max7d": 125000,
-      "totalUnits7d": 5384
+      "totalUnits7d": 5399
     },
     "std_tool": {
       "id": "qjqw9",
@@ -80,11 +80,11 @@
       "sampleCountLast24h": 14,
       "min24h": 7000,
       "max24h": 65000,
-      "avg7d": 9634,
-      "sampleCountLast7d": 306,
+      "avg7d": 9648,
+      "sampleCountLast7d": 304,
       "min7d": 5714,
       "max7d": 14815,
-      "totalUnits7d": 2101
+      "totalUnits7d": 2087
     },
     "polymer": {
       "id": "jl26",
@@ -97,6 +97,30 @@
       "min7d": 1000,
       "max7d": 5000,
       "totalUnits7d": 3725
+    },
+    "water_carrier": {
+      "id": "m22k",
+      "avg24h": 494,
+      "sampleCountLast24h": 26,
+      "min24h": 282,
+      "max24h": 800,
+      "avg7d": 36944,
+      "sampleCountLast7d": 230,
+      "min7d": 9000,
+      "max7d": 75000,
+      "totalUnits7d": 11490
+    },
+    "plastic_bottle": {
+      "id": "pry2",
+      "avg24h": 30071,
+      "sampleCountLast24h": 17,
+      "min24h": 26000,
+      "max24h": 34999,
+      "avg7d": 32780,
+      "sampleCountLast7d": 194,
+      "min7d": 400,
+      "max7d": 50000,
+      "totalUnits7d": 1904
     }
   }
 }
