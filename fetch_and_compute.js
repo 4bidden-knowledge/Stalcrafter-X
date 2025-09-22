@@ -182,6 +182,15 @@ async function main() {
         const id = ITEMS[key];
         try {
             const rawPrices = await fetchAllHistory(id);
+            if (key === "adv_spare") {
+    console.log("DEBUG adv_spare raw data sample:");
+    console.log("Total entries fetched:", rawPrices.length);
+    console.log("First 10 entries:", rawPrices.slice(0, 10));
+    console.log("Recent entries (by timestamp):", rawPrices.filter(p => {
+        const ts = parseTimestampToMs(p.time);
+        return ts > Date.now() - (24 * 60 * 60 * 1000);
+    }).slice(0, 5));
+    }    
             const result = compute24hAverageWeighted(rawPrices);
             out.prices[key] = {
                 id,
