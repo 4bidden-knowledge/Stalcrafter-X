@@ -12,6 +12,8 @@ const ITEMS = {
   "adv_tool": "4q7pl",
   "std_tool": "qjqw9",
   "cheap_tool": "wjlrd"
+  "str_boar": "5lo3o"
+  "polymer":  "jl26"
 };
 
 const REGION = process.env.REGION || "na";
