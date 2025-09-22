@@ -1,11 +1,10 @@
 // fetch_and_compute.js
 // Node 18+ (GitHub Actions provides)
-// Fetches StalcraftDB history for each item, computes 24h avg price, writes docs/prices.json
+// Fetches StalcraftDB history for each item, computes weighted 24h avg price, writes prices.json
 
 import fs from "fs/promises";
 
 const ITEMS = {
-  // friendlyKey: item_id_on_stalcraftdb
   "adv_spare": "y3nmw",    // example; replace with real NA IDs
   "std_spare": "l0og1",
   "cheap_spare": "j0w96",
@@ -26,17 +25,28 @@ async function fetchHistory(id){
   return resp.json();
 }
 
-function compute24hAverage(prices){
-  if(!Array.isArray(prices) || prices.length===0) return null;
-  const now = Date.now();
-  const dayAgo = now - 24*60*60*1000;
-  const prices24 = prices
-    .filter(p => new Date(p.time).getTime() >= dayAgo)
-    .map(p => p.price)
-    .filter(Boolean);
-  if(prices24.length === 0) return null;
-  const sum = prices24.reduce((a,b)=>a+b,0);
-  return Math.round(sum / prices24.length);
+// NEW: weighted per-unit average
+function compute24hAverageWeighted(raw){
+  if(!Array.isArray(raw) || raw.length === 0) return { avg24h: null, sampleCount: 0 };
+
+  const cutoff = Date.now() - 24*60*60*1000;
+  const trades = raw
+    .filter(p => new Date(p.time).getTime() >= cutoff)
+    .map(p => ({
+      unitPrice: p.price / p.amount,
+      amount: p.amount
+    }))
+    .filter(p => Number.isFinite(p.unitPrice) && p.amount > 0);
+
+  if(trades.length === 0) return { avg24h: null, sampleCount: 0 };
+
+  const totalUnits = trades.reduce((sum, t) => sum + t.amount, 0);
+  const weightedSum = trades.reduce((sum, t) => sum + t.unitPrice * t.amount, 0);
+
+  return {
+    avg24h: totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null,
+    sampleCount: trades.length
+  };
 }
 
 async function main(){
@@ -47,17 +57,16 @@ async function main(){
     const id = ITEMS[key];
     try{
       const json = await fetchHistory(id);
-      const avg = compute24hAverage(json.prices || json);
+      const { avg24h, sampleCount } = compute24hAverageWeighted(json.prices || json);
       out.prices[key] = {
         id,
-        avg24h: avg,               // null if no data in last 24h
-        sampleCountLast24h: (Array.isArray(json.prices)? json.prices.filter(p => new Date(p.time).getTime() >= (Date.now()-24*60*60*1000)).length : 0)
+        avg24h,
+        sampleCountLast24h: sampleCount
       };
-      // stagger requests to be polite / avoid rate limits
+      // stagger requests to avoid rate limits
       await sleep(5500 + Math.floor(Math.random()*1500));
     }catch(err){
       out.prices[key] = { id, error: String(err) };
-      // continue to next item
       await sleep(2000);
     }
   }
