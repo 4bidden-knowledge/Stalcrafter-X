@@ -13,7 +13,9 @@ const ITEMS = {
   "std_tool": "qjqw9",
   "cheap_tool": "wjlrd",
   "str_boar": "5lo3o",
-  "polymer":  "jl26"
+  "polymer":  "jl26",
+  "water_carrier": "m22k",
+  "plastic_bottle": "pry2"
 };
 
 const REGION = process.env.REGION || "na";
