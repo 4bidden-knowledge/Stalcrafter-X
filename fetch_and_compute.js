@@ -1,231 +1,150 @@
 // fetch_and_compute.js
-// Node 18+ (GitHub Actions provides)
-// Fetches StalcraftDB history for each item, computes weighted 24h avg price, writes prices.json
+// Pure CommonJS (no npm deps), Node 18+
+// Uses https + zlib instead of fetch
 
-import fs from "fs/promises";
+const fs = require("fs/promises");
+const https = require("https");
+const zlib = require("zlib");
 
 const ITEMS = {
-    "adv_spare": "y3nmw",    // example; replace with real NA IDs
-    "std_spare": "l0og1",
-    "cheap_spare": "j0w96",
-    "adv_tool": "4q7pl",
-    "std_tool": "qjqw9",
-    "cheap_tool": "wjlrd"
+  "adv_spare": "y3nmw",
+  "std_spare": "l0og1",
+  "cheap_spare": "j0w96",
+  "adv_tool": "4q7pl",
+  "std_tool": "qjqw9",
+  "cheap_tool": "wjlrd"
 };
 
 const REGION = "na";
 const OUTPUT_PATH = "prices.json";
-const HISTORY_TIMESPAN_DAYS = 1; // Fetch history for the last 24 hours
+const HISTORY_TIMESPAN_DAYS = 1;
 
-function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+// ---- HTTP fetch with headers ----
+function fetchJson(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers }, (res) => {
+      let stream = res;
+      // handle gzip/deflate/br transparently
+      const enc = res.headers["content-encoding"];
+      if (enc === "gzip") stream = res.pipe(zlib.createGunzip());
+      else if (enc === "deflate") stream = res.pipe(zlib.createInflate());
+      else if (enc === "br") stream = res.pipe(zlib.createBrotliDecompress());
 
-// ---- robust timestamp parser ----
-function parseTimestampToMs(rawTime) {
-    if (rawTime == null) return NaN;
-    if (typeof rawTime === "number") {
-        if (rawTime < 1e12) return rawTime * 1000; // seconds to ms
-        return rawTime;
-    }
-    const parsed = Date.parse(rawTime);
-    if (!isNaN(parsed)) return parsed;
-    const asNum = Number(rawTime);
-    if (!isNaN(asNum)) {
-        if (asNum < 1e12) return asNum * 1000;
-        return asNum;
-    }
-    return NaN;
+      let data = "";
+      stream.on("data", (chunk) => (data += chunk));
+      stream.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (err) {
+          reject(new Error("Invalid JSON: " + err.message));
+        }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }
 
-// ---- helper: median and MAD (robust) ----
-function median(arr) {
-    if (!arr.length) return null;
-    const a = [...arr].sort((x, y) => x - y);
-    const mid = Math.floor(a.length / 2);
-    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function parseTimestampToMs(raw) {
+  if (!raw) return NaN;
+  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw;
+  const parsed = Date.parse(raw);
+  if (!isNaN(parsed)) return parsed;
+  const num = Number(raw);
+  return !isNaN(num) ? (num < 1e12 ? num * 1000 : num) : NaN;
 }
-function mad(arr, med) {
-    if (!arr.length) return null;
-    const diffs = arr.map(x => Math.abs(x - med));
-    return median(diffs);
+function median(arr) { if (!arr.length) return null; const a = [...arr].sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+function mad(arr,med){ if(!arr.length)return null; return median(arr.map(x=>Math.abs(x-med))); }
 
-// ---- fetch history for a given item (single page with browser-like headers) ----
 async function fetchAllHistory(id) {
-  const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=0`;
-
-  const resp = await fetch(url, {
-    method: "GET",
-    headers: {
+  let allPrices = [];
+  let page = 0;
+  const cutoff = Date.now() - HISTORY_TIMESPAN_DAYS * 86400 * 1000;
+  const MAX_PAGES = 2;
+  while (page < MAX_PAGES) {
+    const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
+    const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
       "Accept": "*/*",
       "Accept-Language": "en-US,en;q=0.5",
       "Accept-Encoding": "gzip, deflate, br, zstd",
       "Referer": `https://stalcraftdb.net/${REGION}/${id}`,
-      "Connection": "keep-alive",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin"
-    }
-  });
+      "Connection": "keep-alive"
+    };
 
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-  const data = await resp.json();
+    const data = await fetchJson(url, headers);
+    const prices = Array.isArray(data.prices) ? data.prices : [];
+    if (prices.length === 0) break;
 
-  // keep consistent shape: return array of prices
-  return Array.isArray(data.prices) ? data.prices : [];
+    allPrices.push(...prices);
+    const last = prices[prices.length - 1];
+    if (parseTimestampToMs(last.time) < cutoff) break;
+
+    page++;
+    if (page < MAX_PAGES) await sleep(500 + Math.random() * 300);
+  }
+  return allPrices;
 }
 
-    while (page < MAX_PAGES) {
-        const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
-        const resp = await fetch(url, { headers });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-        
-        const data = await resp.json();
-        const prices = Array.isArray(data.prices) ? data.prices : [];
+function compute24hAverageWeighted(rawArray) {
+  if (!Array.isArray(rawArray) || !rawArray.length)
+    return { avg24h: null, sampleCount: 0, min: null, max: null };
 
-        if (prices.length === 0) break;
+  const cutoff = Date.now() - HISTORY_TIMESPAN_DAYS * 86400 * 1000;
+  const norm = rawArray.map(p => ({
+    ts: parseTimestampToMs(p.time),
+    price: Number(p.price),
+    amount: Number(p.amount || 1)
+  })).filter(p => p.ts >= cutoff && p.price > 0 && p.amount > 0);
 
-        allPrices.push(...prices);
+  if (!norm.length) return { avg24h: null, sampleCount: 0, min: null, max: null };
 
-        const lastPrice = prices[prices.length - 1];
-        if (parseTimestampToMs(lastPrice.time) < cutoff) break;
+  const candidateA = norm.map(p => p.price);
+  const candidateB = norm.map(p => p.price / p.amount);
+  const medA = median(candidateA), medB = median(candidateB);
+  const madA = mad(candidateA, medA), madB = mad(candidateB, medB);
+  const relA = medA ? madA / medA : Infinity;
+  const relB = medB ? madB / medB : Infinity;
+  const LARGE = 1e6;
+  const useB = (relB < relA) || (medA > LARGE && medB < medA);
 
-        page++;
-        if (page < MAX_PAGES) {
-            await sleep(500 + Math.floor(Math.random() * 300));
-        }
-    }
+  const unitized = norm.map((p,i)=>({
+    unitPrice: useB ? candidateB[i] : candidateA[i],
+    amount: p.amount
+  })).filter(u => u.unitPrice > 0);
 
-    return allPrices;
-}
+  if (!unitized.length) return { avg24h: null, sampleCount: 0, min: null, max: null };
 
-// ---- FIXED: compute weighted average with auto-detect per-unit vs stack-total ----
-function compute24hAverageWeighted(rawData) {
-    let rawArray;
-    if (rawData && rawData.prices && Array.isArray(rawData.prices)) {
-        rawArray = rawData.prices;
-    } else if (Array.isArray(rawData)) {
-        rawArray = rawData;
-    } else {
-        return {
-            avg24h: null, 
-            sampleCount: 0, 
-            min: null, 
-            max: null,
-            error: "Invalid data format"
-        };
-    }
+  const totalUnits = unitized.reduce((s,t)=>s+t.amount,0);
+  const weightedSum = unitized.reduce((s,t)=>s+t.unitPrice*t.amount,0);
+  const avg = Math.round(weightedSum / totalUnits);
+  const unitVals = unitized.map(u=>u.unitPrice);
 
-    if (rawArray.length === 0) return {
-        avg24h: null, sampleCount: 0, min: null, max: null
-    };
-
-    const cutoff = Date.now() - (HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000);
-
-    const normalized = rawArray.map(p => ({
-        ts: parseTimestampToMs(p.time),
-        price: Number(p.price),
-        amount: Number(p.amount || 1)
-    })).filter(p => 
-        !Number.isNaN(p.ts) && 
-        p.ts >= cutoff && 
-        Number.isFinite(p.price) && 
-        p.price > 0 &&
-        p.amount > 0
-    );
-
-    if (normalized.length === 0) return {
-        avg24h: null, sampleCount: 0, min: null, max: null
-    };
-
-    const candidateA = normalized.map(p => p.price);
-    const candidateB = normalized.map(p => p.price / p.amount);
-
-    const medA = median(candidateA);
-    const medB = median(candidateB);
-    const madA = mad(candidateA, medA);
-    const madB = mad(candidateB, medB);
-
-    const relA = (medA && medA !== 0) ? (madA / Math.abs(medA)) : Infinity;
-    const relB = (medB && medB !== 0) ? (madB / Math.abs(medB)) : Infinity;
-
-    const LARGE_THRESHOLD = 1e6;
-    let choosePerUnitCandidateB = (relB < relA) || (medA > LARGE_THRESHOLD && medB < medA);
-
-    const unitPrices = choosePerUnitCandidateB ? candidateB : candidateA;
-    const chosenLabel = choosePerUnitCandidateB ? "price/amount (stack total detected)" : "price (per-unit detected)";
-
-    const unitized = normalized.map((p, i) => ({
-        unitPrice: unitPrices[i],
-        amount: p.amount
-    })).filter(u => Number.isFinite(u.unitPrice) && u.amount > 0);
-
-    if (unitized.length === 0) return { avg24h: null, sampleCount: 0, min: null, max: null };
-
-    const totalUnits = unitized.reduce((s, t) => s + t.amount, 0);
-    const weightedSum = unitized.reduce((s, t) => s + t.unitPrice * t.amount, 0);
-    const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
-
-    const unitValues = unitized.map(u => u.unitPrice);
-    const min = Math.round(Math.min(...unitValues));
-    const max = Math.round(Math.max(...unitValues));
-
-    return {
-        avg24h: avg,
-        sampleCount: unitized.length,
-        min,
-        max,
-        detection: chosenLabel,
-        medianCandidateA: Math.round(medA || 0),
-        medianCandidateB: Math.round(medB || 0),
-        relMadA: relA,
-        relMadB: relB,
-        totalUnits: totalUnits
-    };
+  return {
+    avg24h: avg,
+    sampleCount: unitized.length,
+    min: Math.round(Math.min(...unitVals)),
+    max: Math.round(Math.max(...unitVals)),
+    detection: useB ? "price/amount (stack total detected)" : "price (per-unit detected)"
+  };
 }
 
 async function main() {
-    const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
-    const keys = Object.keys(ITEMS);
-
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const id = ITEMS[key];
-        try {
-            const rawPrices = await fetchAllHistory(id);
-            if (key === "adv_spare") {
-                console.log("DEBUG adv_spare raw data sample:");
-                console.log("Total entries fetched:", rawPrices.length);
-                console.log("First 10 entries:", rawPrices.slice(0, 10));
-            }    
-            const result = compute24hAverageWeighted(rawPrices);
-            out.prices[key] = {
-                id,
-                avg24h: result.avg24h,
-                sampleCountLast24h: result.sampleCount,
-                min: result.min,
-                max: result.max,
-                debug: {
-                    detection: result.detection,
-                    medianCandidateA: result.medianCandidateA,
-                    medianCandidateB: result.medianCandidateB,
-                    relMadA: result.relMadA,
-                    relMadB: result.relMadB,
-                    totalUnits: result.totalUnits
-                }
-            };
-            await sleep(5500 + Math.floor(Math.random() * 1500));
-        } catch (err) {
-            out.prices[key] = { id, error: String(err) };
-            console.error(`Error for ${key} (${id}):`, err?.toString?.() || err);
-            await sleep(2000);
-        }
+  const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
+  for (const [key, id] of Object.entries(ITEMS)) {
+    try {
+      const raw = await fetchAllHistory(id);
+      const r = compute24hAverageWeighted(raw);
+      out.prices[key] = { id, ...r };
+      await sleep(5500 + Math.random() * 1500);
+    } catch (e) {
+      out.prices[key] = { id, error: String(e) };
+      await sleep(2000);
     }
-
-    await fs.writeFile(OUTPUT_PATH, JSON.stringify(out, null, 2), "utf8");
-    console.log("Wrote", OUTPUT_PATH);
+  }
+  await fs.writeFile(OUTPUT_PATH, JSON.stringify(out,null,2),"utf8");
+  console.log("Wrote", OUTPUT_PATH);
 }
 
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+main().catch(e => { console.error(e); process.exit(1); });
