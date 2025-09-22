@@ -20,8 +20,9 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Run poller
-        run: npm start
+
+      - name: Run fetch script
+        run: node fetch_and_compute.js
 
       - name: Commit and push prices.json
         run: |
