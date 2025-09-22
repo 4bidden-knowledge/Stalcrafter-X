@@ -47,10 +47,9 @@ function mad(arr, med) {
     if (!arr.length) return null;
     const diffs = arr.map(x => Math.abs(x - med));
     return median(diffs);
-}
 
-// ---- fetch all pages for a given item (max 2 pages) ----
-async function fetchHistory(id){ 
+// ---- fetch history for a given item (single page with browser-like headers) ----
+async function fetchAllHistory(id) {
   const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=0`;
 
   const resp = await fetch(url, {
@@ -69,7 +68,10 @@ async function fetchHistory(id){
   });
 
   if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-  return resp.json();
+  const data = await resp.json();
+
+  // keep consistent shape: return array of prices
+  return Array.isArray(data.prices) ? data.prices : [];
 }
 
     while (page < MAX_PAGES) {
