@@ -1,78 +1,82 @@
 {
-  "updated": "2025-09-22T09:37:08.154Z",
+  "updated": "2025-09-22T10:01:25.292Z",
   "region": "na",
   "prices": {
     "adv_spare": {
       "id": "y3nmw",
+      "avg24h": 1457418,
+      "sampleCountLast24h": 1,
+      "min": 1457418,
+      "max": 1457418,
+      "debug": {
+        "detection": "price (per-unit detected)",
+        "medianCandidateA": 1457418,
+        "medianCandidateB": 1457418,
+        "relMadA": 0,
+        "relMadB": 0,
+        "totalUnits": 1
+      }
+    },
+    "std_spare": {
+      "id": "l0og1",
       "avg24h": null,
       "sampleCountLast24h": 0,
       "min": null,
       "max": null,
       "debug": {}
     },
-    "std_spare": {
-      "id": "l0og1",
-      "avg24h": 1972713,
-      "sampleCountLast24h": 3,
-      "min": 562595,
-      "max": 4097264,
-      "debug": {
-        "detection": "price (per-unit detected)",
-        "medianCandidateA": 1258280,
-        "medianCandidateB": 1258280,
-        "relMadA": 0.5528856852210955,
-        "relMadB": 0.5528856852210955
-      }
-    },
     "cheap_spare": {
       "id": "j0w96",
-      "avg24h": 8545042,
-      "sampleCountLast24h": 1,
-      "min": 8545042,
-      "max": 8545042,
-      "debug": {
-        "detection": "price (per-unit detected)",
-        "medianCandidateA": 8545042,
-        "medianCandidateB": 8545042,
-        "relMadA": 0,
-        "relMadB": 0
-      }
+      "avg24h": null,
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "adv_tool": {
       "id": "4q7pl",
-      "avg24h": 7049168,
-      "sampleCountLast24h": 2,
-      "min": 5121215,
-      "max": 8977121,
+      "avg24h": 5731543,
+      "sampleCountLast24h": 3,
+      "min": 1746667,
+      "max": 8595204,
       "debug": {
         "detection": "price (per-unit detected)",
-        "medianCandidateA": 7049168,
-        "medianCandidateB": 7049168,
-        "relMadA": 0.27350078761067975,
-        "relMadB": 0.27350078761067975
+        "medianCandidateA": 6852759,
+        "medianCandidateB": 6852759,
+        "relMadA": 0.2542691199267332,
+        "relMadB": 0.2542691199267332,
+        "totalUnits": 3
       }
     },
     "std_tool": {
       "id": "qjqw9",
-      "avg24h": 5778022,
+      "avg24h": 3260016,
       "sampleCountLast24h": 3,
-      "min": 412859,
-      "max": 9474407,
+      "min": 455930,
+      "max": 6257483,
       "debug": {
         "detection": "price (per-unit detected)",
-        "medianCandidateA": 7446800,
-        "medianCandidateB": 7446800,
-        "relMadA": 0.2722789654616748,
-        "relMadB": 0.2722789654616748
+        "medianCandidateA": 3066636,
+        "medianCandidateB": 3066636,
+        "relMadA": 0.8513256871699152,
+        "relMadB": 0.8513256871699152,
+        "totalUnits": 3
       }
     },
     "cheap_tool": {
       "id": "wjlrd",
-      "avg24h": null,
-      "sampleCountLast24h": 0,
-      "min": null,
-      "max": null,
-      "debug": {}
+      "avg24h": 4414838,
+      "sampleCountLast24h": 2,
+      "min": 2094491,
+      "max": 6735185,
+      "debug": {
+        "detection": "price (per-unit detected)",
+        "medianCandidateA": 4414838,
+        "medianCandidateB": 4414838,
+        "relMadA": 0.525579194525371,
+        "relMadB": 0.525579194525371,
+        "totalUnits": 2
+      }
     }
   }
 }
