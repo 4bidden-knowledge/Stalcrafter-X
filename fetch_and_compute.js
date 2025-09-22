@@ -66,7 +66,8 @@ function compute24hAverageWeighted(rawArray){
     avg24h: null, sampleCount: 0, min: null, max: null
   };
 
-  const cutoff = Date.now() - 24*60*60*1000;
+const cutoff = Date.now() - 7*24*60*60*1000;
+
 
   // Normalize entries: timestamp ms, price number, amount number
   const normalized = rawArray.map(p => {
