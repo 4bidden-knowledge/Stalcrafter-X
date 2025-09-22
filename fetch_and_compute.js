@@ -1,6 +1,7 @@
 // fetch_and_compute.js
 // ESM, Node 18+ (no npm deps)
-// Fetches StalcraftDB history for each item, computes weighted 24h and 7d avg prices, writes prices.json
+// Polls stalcraftdb auction-history, computes weighted 24h & 7d per-unit averages,
+// writes prices.json and prices.csv next to each other.
 
 import fs from "fs/promises";
 
@@ -13,20 +14,22 @@ const ITEMS = {
   "cheap_tool": "wjlrd"
 };
 
-const REGION = "na";
-const OUTPUT_PATH = "prices.json";
-const MAX_PAGES = 10; // increase to cover 7-day window for higher-volume items
-const PER_PAGE_DELAY_MS = 500 + Math.floor(Math.random() * 300);
-const BETWEEN_ITEMS_MS = 5500 + Math.floor(Math.random() * 1500);
+const REGION = process.env.REGION || "na";
+const OUTPUT_JSON = process.env.OUTPUT_JSON || "prices.json";
+const OUTPUT_CSV = OUTPUT_JSON.replace(/\.json$/i, "") + ".csv";
+
+const MAX_PAGES = Number(process.env.MAX_PAGES || 10); // increase if needed for heavy items
+const PER_PAGE_DELAY_MS = Number(process.env.PER_PAGE_DELAY_MS || (500 + Math.floor(Math.random() * 300)));
+const BETWEEN_ITEMS_MS = Number(process.env.BETWEEN_ITEMS_MS || (5500 + Math.floor(Math.random() * 1500)));
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function parseTimestampToMs(rawTime) {
-  if (rawTime == null) return NaN;
-  if (typeof rawTime === "number") return rawTime < 1e12 ? rawTime * 1000 : rawTime;
-  const parsed = Date.parse(rawTime);
+function parseTimestampToMs(raw) {
+  if (raw == null) return NaN;
+  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw;
+  const parsed = Date.parse(raw);
   if (!Number.isNaN(parsed)) return parsed;
-  const asNum = Number(rawTime);
+  const asNum = Number(raw);
   if (!Number.isNaN(asNum)) return asNum < 1e12 ? asNum * 1000 : asNum;
   return NaN;
 }
@@ -43,6 +46,7 @@ function mad(arr, med) {
   return median(diffs);
 }
 
+// fetch up to MAX_PAGES pages for an item. stop early if last entry is older than cutoff7d
 async function fetchAllHistory(id) {
   const cutoff7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const headersBase = {
@@ -61,26 +65,42 @@ async function fetchAllHistory(id) {
     const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
     const headers = { ...headersBase, "Referer": `https://stalcraftdb.net/${REGION}/${id}` };
 
-    const resp = await fetch(url, { method: "GET", headers });
+    let resp;
+    try {
+      resp = await fetch(url, { method: "GET", headers });
+    } catch (err) {
+      throw new Error(`Network error for ${url}: ${err?.message || err}`);
+    }
     if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-    const data = await resp.json();
-    const prices = Array.isArray(data.prices) ? data.prices : [];
 
+    let data;
+    try {
+      data = await resp.json();
+    } catch (err) {
+      throw new Error(`Invalid JSON from ${url}: ${err?.message || err}`);
+    }
+
+    // canonicalize possible shapes: prefer data.prices array, otherwise try data (if array)
+    const prices = Array.isArray(data.prices) ? data.prices : (Array.isArray(data) ? data : []);
     if (!prices.length) break;
+
     allPrices.push(...prices);
 
-    // if the last item on this page is older than 7-day cutoff we can stop early
-    const lastTime = parseTimestampToMs(prices[prices.length - 1]?.time);
-    if (!Number.isNaN(lastTime) && lastTime < cutoff7) break;
+    // stop early if last entry of page is older than 7-day cutoff
+    const last = prices[prices.length - 1];
+    const lastTs = parseTimestampToMs(last?.time);
+    if (!Number.isNaN(lastTs) && lastTs < cutoff7) break;
 
     if (page < MAX_PAGES - 1) await sleep(PER_PAGE_DELAY_MS);
   }
   return allPrices;
 }
 
+// compute weighted per-unit average for a given window in days (1 or 7)
 function computeWindowStats(trades, windowDays) {
   const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-  const normalized = (trades || []).map(p => ({
+
+  const normalized = (Array.isArray(trades) ? trades : []).map(p => ({
     ts: parseTimestampToMs(p.time),
     price: Number(p.price),
     amount: Number(p.amount || 1)
@@ -123,7 +143,13 @@ function computeWindowStats(trades, windowDays) {
   const min = Math.round(Math.min(...unitVals));
   const max = Math.round(Math.max(...unitVals));
 
-  return { avg, count: unitized.length, min, max, totalUnits, detection: chooseB ? "price/amount" : "price" };
+  return { avg, count: unitized.length, min, max, totalUnits, detection: chooseB ? "price/amount" : "price", medianCandidateA: Math.round(medA || 0), medianCandidateB: Math.round(medB || 0), relMadA: relA, relMadB: relB };
+}
+
+function csvEscapeCell(cell){
+  if (cell === null || cell === undefined) return "";
+  const s = String(cell);
+  return `"${s.replace(/"/g, '""')}"`;
 }
 
 async function main() {
@@ -133,7 +159,6 @@ async function main() {
     try {
       const rawTrades = await fetchAllHistory(id);
 
-      // compute 24h and 7d stats
       const w24 = computeWindowStats(rawTrades, 1);
       const w7 = computeWindowStats(rawTrades, 7);
 
@@ -146,18 +171,66 @@ async function main() {
         avg7d: w7.avg,
         sampleCountLast7d: w7.count,
         min7d: w7.min,
-        max7d: w7.max
+        max7d: w7.max,
+        totalUnits7d: w7.totalUnits
       };
 
       await sleep(BETWEEN_ITEMS_MS);
     } catch (err) {
       out.prices[key] = { id, error: String(err) };
+      // continue, but keep polite delay
       await sleep(2000);
     }
   }
 
-  await fs.writeFile(OUTPUT_PATH, JSON.stringify(out, null, 2), "utf8");
-  console.log("Wrote", OUTPUT_PATH);
+  // write JSON
+  try {
+    await fs.writeFile(OUTPUT_JSON, JSON.stringify(out, null, 2), "utf8");
+    console.log("Wrote", OUTPUT_JSON);
+  } catch (err) {
+    console.error("Failed to write JSON:", err);
+  }
+
+  // write CSV (header + rows)
+  try {
+    const header = [
+      "key",
+      "id",
+      "avg24h",
+      "sampleCountLast24h",
+      "min24h",
+      "max24h",
+      "avg7d",
+      "sampleCountLast7d",
+      "min7d",
+      "max7d",
+      "totalUnits7d"
+    ];
+    const rows = [header];
+    for (const [k, v] of Object.entries(out.prices || {})) {
+      rows.push([
+        k,
+        v.id ?? "",
+        v.avg24h ?? "",
+        v.sampleCountLast24h ?? "",
+        v.min24h ?? "",
+        v.max24h ?? "",
+        v.avg7d ?? "",
+        v.sampleCountLast7d ?? "",
+        v.min7d ?? "",
+        v.max7d ?? "",
+        v.totalUnits7d ?? ""
+      ].map(csvEscapeCell));
+    }
+    const csvText = rows.map(r => r.join(",")).join("\n");
+    await fs.writeFile(OUTPUT_CSV, csvText, "utf8");
+    console.log("Wrote", OUTPUT_CSV);
+  } catch (err) {
+    console.error("Failed to write CSV:", err);
+  }
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main().catch(err => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});
