@@ -1,36 +1,60 @@
 {
-  "updated": "2025-09-22T04:25:37.382Z",
+  "updated": "2025-09-22T04:51:54.283Z",
   "region": "na",
   "prices": {
     "adv_spare": {
       "id": "y3nmw",
       "avg24h": null,
-      "sampleCountLast24h": 0
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "std_spare": {
       "id": "l0og1",
       "avg24h": null,
-      "sampleCountLast24h": 0
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "cheap_spare": {
       "id": "j0w96",
-      "avg24h": 5920472,
-      "sampleCountLast24h": 2
+      "avg24h": null,
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "adv_tool": {
       "id": "4q7pl",
-      "avg24h": 6591623,
-      "sampleCountLast24h": 1
+      "avg24h": null,
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "std_tool": {
       "id": "qjqw9",
-      "avg24h": 8283719,
-      "sampleCountLast24h": 3
+      "avg24h": null,
+      "sampleCountLast24h": 0,
+      "min": null,
+      "max": null,
+      "debug": {}
     },
     "cheap_tool": {
       "id": "wjlrd",
-      "avg24h": 3322247,
-      "sampleCountLast24h": 2
+      "avg24h": 7855577,
+      "sampleCountLast24h": 2,
+      "min": 6522660,
+      "max": 9188493,
+      "debug": {
+        "detection": "price (per-unit detected)",
+        "medianCandidateA": 7855577,
+        "medianCandidateB": 7855577,
+        "relMadA": 0.1696777442113892,
+        "relMadB": 0.1696777442113892
+      }
     }
   }
 }
