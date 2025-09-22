@@ -20,9 +20,6 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install deps
-        run: npm ci
-
       - name: Run poller
         run: npm start
 
