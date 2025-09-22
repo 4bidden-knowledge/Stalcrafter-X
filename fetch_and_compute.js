@@ -50,24 +50,27 @@ function mad(arr, med) {
 }
 
 // ---- fetch all pages for a given item (max 2 pages) ----
-async function fetchAllHistory(id) {
-    let allPrices = [];
-    let page = 0;
-    const cutoff = Date.now() - (HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000);
-    const MAX_PAGES = 2; // Only look at first 2 pages
+async function fetchHistory(id){ 
+  const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=0`;
 
-    const headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-        "Host": "stalcraftdb.net",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "cross-site",
-        "Upgrade-Insecure-Requests": "1",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0"
-    };
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+      "Accept": "*/*",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Accept-Encoding": "gzip, deflate, br, zstd",
+      "Referer": `https://stalcraftdb.net/${REGION}/${id}`,
+      "Connection": "keep-alive",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin"
+    }
+  });
+
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+  return resp.json();
+}
 
     while (page < MAX_PAGES) {
         const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
