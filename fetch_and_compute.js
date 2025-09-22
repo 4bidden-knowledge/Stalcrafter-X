@@ -3,7 +3,6 @@
 // Fetches StalcraftDB history for each item, computes 24h avg price, writes docs/prices.json
 
 import fs from "fs/promises";
-import fetch from "node-fetch";
 
 const ITEMS = {
   // friendlyKey: item_id_on_stalcraftdb
