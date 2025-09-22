@@ -1,6 +1,6 @@
 // fetch_and_compute.js
 // ESM, Node 18+ (no npm deps)
-// Replace your file with this. Uses global fetch and fs/promises.
+// Fetches StalcraftDB history for each item, computes weighted 24h and 7d avg prices, writes prices.json
 
 import fs from "fs/promises";
 
@@ -15,7 +15,9 @@ const ITEMS = {
 
 const REGION = "na";
 const OUTPUT_PATH = "prices.json";
-const HISTORY_TIMESPAN_DAYS = Number(process.env.HISTORY_TIMESPAN_DAYS || 1); // default 1 day
+const MAX_PAGES = 10; // increase to cover 7-day window for higher-volume items
+const PER_PAGE_DELAY_MS = 500 + Math.floor(Math.random() * 300);
+const BETWEEN_ITEMS_MS = 5500 + Math.floor(Math.random() * 1500);
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -42,14 +44,12 @@ function mad(arr, med) {
 }
 
 async function fetchAllHistory(id) {
-  const MAX_PAGES = 2;
-  const cutoff = Date.now() - HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000;
-  const headers = {
+  const cutoff7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const headersBase = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
     "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Referer": `https://stalcraftdb.net/${REGION}/`, // site-level referer ok; item referer used later per-request
     "Connection": "keep-alive",
     "Sec-Fetch-Dest": "empty",
     "Sec-Fetch-Mode": "cors",
@@ -59,10 +59,9 @@ async function fetchAllHistory(id) {
   let allPrices = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
-    // set Referer to item page (some endpoints require it)
-    const reqHeaders = { ...headers, "Referer": `https://stalcraftdb.net/${REGION}/${id}` };
+    const headers = { ...headersBase, "Referer": `https://stalcraftdb.net/${REGION}/${id}` };
 
-    const resp = await fetch(url, { method: "GET", headers: reqHeaders });
+    const resp = await fetch(url, { method: "GET", headers });
     if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
     const data = await resp.json();
     const prices = Array.isArray(data.prices) ? data.prices : [];
@@ -70,25 +69,18 @@ async function fetchAllHistory(id) {
     if (!prices.length) break;
     allPrices.push(...prices);
 
-    // stop early if last item on page is older than cutoff
-    const last = prices[prices.length - 1];
-    if (parseTimestampToMs(last?.time) < cutoff) break;
+    // if the last item on this page is older than 7-day cutoff we can stop early
+    const lastTime = parseTimestampToMs(prices[prices.length - 1]?.time);
+    if (!Number.isNaN(lastTime) && lastTime < cutoff7) break;
 
-    // polite delay between pages
-    if (page < MAX_PAGES - 1) await sleep(500 + Math.floor(Math.random() * 300));
+    if (page < MAX_PAGES - 1) await sleep(PER_PAGE_DELAY_MS);
   }
-
   return allPrices;
 }
 
-function compute24hAverageWeighted(rawArray) {
-  if (!Array.isArray(rawArray) || rawArray.length === 0) {
-    return { avg24h: null, sampleCount: 0, min: null, max: null };
-  }
-
-  const cutoff = Date.now() - HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000;
-
-  const normalized = rawArray.map(p => ({
+function computeWindowStats(trades, windowDays) {
+  const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+  const normalized = (trades || []).map(p => ({
     ts: parseTimestampToMs(p.time),
     price: Number(p.price),
     amount: Number(p.amount || 1)
@@ -100,7 +92,7 @@ function compute24hAverageWeighted(rawArray) {
     p.amount > 0
   );
 
-  if (normalized.length === 0) return { avg24h: null, sampleCount: 0, min: null, max: null };
+  if (normalized.length === 0) return { avg: null, count: 0, min: null, max: null, totalUnits: 0 };
 
   const candidateA = normalized.map(p => p.price);
   const candidateB = normalized.map(p => p.price / p.amount);
@@ -112,75 +104,54 @@ function compute24hAverageWeighted(rawArray) {
 
   const relA = (medA && medA !== 0) ? (madA / Math.abs(medA)) : Infinity;
   const relB = (medB && medB !== 0) ? (madB / Math.abs(medB)) : Infinity;
-
   const LARGE_THRESHOLD = 1e6;
-  const choosePerUnitCandidateB = (relB < relA) || (medA > LARGE_THRESHOLD && medB < medA);
 
-  const unitPrices = choosePerUnitCandidateB ? candidateB : candidateA;
+  const chooseB = (relB < relA) || (medA > LARGE_THRESHOLD && medB < medA);
+  const unitPrices = chooseB ? candidateB : candidateA;
 
   const unitized = normalized.map((p, i) => ({
     unitPrice: unitPrices[i],
     amount: p.amount
   })).filter(u => Number.isFinite(u.unitPrice) && u.amount > 0);
 
-  if (unitized.length === 0) return { avg24h: null, sampleCount: 0, min: null, max: null };
+  if (unitized.length === 0) return { avg: null, count: 0, min: null, max: null, totalUnits: 0 };
 
   const totalUnits = unitized.reduce((s, t) => s + t.amount, 0);
   const weightedSum = unitized.reduce((s, t) => s + t.unitPrice * t.amount, 0);
   const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
+  const unitVals = unitized.map(u => u.unitPrice);
+  const min = Math.round(Math.min(...unitVals));
+  const max = Math.round(Math.max(...unitVals));
 
-  const unitValues = unitized.map(u => u.unitPrice);
-  const min = Math.round(Math.min(...unitValues));
-  const max = Math.round(Math.max(...unitValues));
-
-  return {
-    avg24h: avg,
-    sampleCount: unitized.length,
-    min,
-    max,
-    detection: choosePerUnitCandidateB ? "price/amount (stack total detected)" : "price (per-unit detected)",
-    medianCandidateA: Math.round(medA || 0),
-    medianCandidateB: Math.round(medB || 0),
-    relMadA: relA,
-    relMadB: relB,
-    totalUnits
-  };
+  return { avg, count: unitized.length, min, max, totalUnits, detection: chooseB ? "price/amount" : "price" };
 }
 
 async function main() {
   const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
-  const keys = Object.keys(ITEMS);
 
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    const id = ITEMS[key];
+  for (const [key, id] of Object.entries(ITEMS)) {
     try {
-      const rawPrices = await fetchAllHistory(id);
-      // debug for adv_spare
-      if (key === "adv_spare") {
-        console.log("DEBUG adv_spare: fetched entries:", rawPrices.length);
-        console.log("DEBUG adv_spare sample:", rawPrices.slice(0, 8));
-      }
-      const result = compute24hAverageWeighted(rawPrices);
+      const rawTrades = await fetchAllHistory(id);
+
+      // compute 24h and 7d stats
+      const w24 = computeWindowStats(rawTrades, 1);
+      const w7 = computeWindowStats(rawTrades, 7);
+
       out.prices[key] = {
         id,
-        avg24h: result.avg24h,
-        sampleCountLast24h: result.sampleCount,
-        min: result.min,
-        max: result.max,
-        debug: {
-          detection: result.detection,
-          medianCandidateA: result.medianCandidateA,
-          medianCandidateB: result.medianCandidateB,
-          relMadA: result.relMadA,
-          relMadB: result.relMadB,
-          totalUnits: result.totalUnits
-        }
+        avg24h: w24.avg,
+        sampleCountLast24h: w24.count,
+        min24h: w24.min,
+        max24h: w24.max,
+        avg7d: w7.avg,
+        sampleCountLast7d: w7.count,
+        min7d: w7.min,
+        max7d: w7.max
       };
-      await sleep(5500 + Math.floor(Math.random() * 1500));
+
+      await sleep(BETWEEN_ITEMS_MS);
     } catch (err) {
       out.prices[key] = { id, error: String(err) };
-      console.error(`Error for ${key} (${id}):`, err?.toString?.() || err);
       await sleep(2000);
     }
   }
@@ -189,7 +160,4 @@ async function main() {
   console.log("Wrote", OUTPUT_PATH);
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(err => { console.error(err); process.exit(1); });
