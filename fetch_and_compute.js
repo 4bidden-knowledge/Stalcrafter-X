@@ -56,31 +56,37 @@ async function fetchAllHistory(id) {
     const cutoff = Date.now() - (HISTORY_TIMESPAN_DAYS * 24 * 60 * 60 * 1000);
     const MAX_PAGES = 2; // Only look at first 2 pages
 
+    const headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Connection": "keep-alive",
+        "Host": "stalcraftdb.net",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "cross-site",
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0"
+    };
+
     while (page < MAX_PAGES) {
         const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
-        const resp = await fetch(url, { headers: { "User-Agent": "stalcraft-poller/1.0" } } );
+        const resp = await fetch(url, { headers });
         if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
         
         const data = await resp.json();
-        // The actual price data is in the 'prices' property of the response
         const prices = Array.isArray(data.prices) ? data.prices : [];
 
-        if (prices.length === 0) {
-            break; // No more prices on this page, so we're done.
-        }
+        if (prices.length === 0) break;
 
         allPrices.push(...prices);
 
         const lastPrice = prices[prices.length - 1];
-        if (parseTimestampToMs(lastPrice.time) < cutoff) {
-            break; // Stop if the last item is already outside our desired time window
-        }
+        if (parseTimestampToMs(lastPrice.time) < cutoff) break;
 
         page++;
-        
-        // Add delay between pages with randomization
         if (page < MAX_PAGES) {
-            await sleep(500 + Math.floor(Math.random() * 300)); // 0.5-0.8 seconds between pages
+            await sleep(500 + Math.floor(Math.random() * 300));
         }
     }
 
@@ -89,7 +95,6 @@ async function fetchAllHistory(id) {
 
 // ---- FIXED: compute weighted average with auto-detect per-unit vs stack-total ----
 function compute24hAverageWeighted(rawData) {
-    // Handle the case where rawData is the full response object or just an array
     let rawArray;
     if (rawData && rawData.prices && Array.isArray(rawData.prices)) {
         rawArray = rawData.prices;
@@ -183,14 +188,10 @@ async function main() {
         try {
             const rawPrices = await fetchAllHistory(id);
             if (key === "adv_spare") {
-    console.log("DEBUG adv_spare raw data sample:");
-    console.log("Total entries fetched:", rawPrices.length);
-    console.log("First 10 entries:", rawPrices.slice(0, 10));
-    console.log("Recent entries (by timestamp):", rawPrices.filter(p => {
-        const ts = parseTimestampToMs(p.time);
-        return ts > Date.now() - (24 * 60 * 60 * 1000);
-    }).slice(0, 5));
-    }    
+                console.log("DEBUG adv_spare raw data sample:");
+                console.log("Total entries fetched:", rawPrices.length);
+                console.log("First 10 entries:", rawPrices.slice(0, 10));
+            }    
             const result = compute24hAverageWeighted(rawPrices);
             out.prices[key] = {
                 id,
@@ -207,12 +208,6 @@ async function main() {
                     totalUnits: result.totalUnits
                 }
             };
-
-            if (key === "adv_spare") {
-                console.log("DEBUG adv_spare computed:", out.prices[key]);
-                console.log(`SAMPLE raw entries (fetched ${rawPrices.length}):`, rawPrices.slice(0, 5));
-            }
-
             await sleep(5500 + Math.floor(Math.random() * 1500));
         } catch (err) {
             out.prices[key] = { id, error: String(err) };
