@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name "stalcraft-poller-bot"
           git config user.email "noreply+stalcraft@users.noreply.github.com"
-          git add docs/prices.json
+          git add prices.json
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
