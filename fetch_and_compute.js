@@ -2,6 +2,7 @@
 // ESM, Node 18+ (no npm deps)
 // Polls stalcraftdb auction-history, computes weighted 24h & 7d per-unit averages,
 // writes prices.json and prices.csv next to each other.
+// Now with outlier detection and logging for RWT detection
 
 import fs from "fs/promises";
 
@@ -22,10 +23,15 @@ const ITEMS = {
 const REGION = process.env.REGION || "na";
 const OUTPUT_JSON = process.env.OUTPUT_JSON || "prices.json";
 const OUTPUT_CSV = OUTPUT_JSON.replace(/\.json$/i, "") + ".csv";
+const OUTLIERS_JSON = process.env.OUTLIERS_JSON || "outliers.json";
 
 const MAX_PAGES = Number(process.env.MAX_PAGES || 10); // increase if needed for heavy items
 const PER_PAGE_DELAY_MS = Number(process.env.PER_PAGE_DELAY_MS || (500 + Math.floor(Math.random() * 300)));
 const BETWEEN_ITEMS_MS = Number(process.env.BETWEEN_ITEMS_MS || (5500 + Math.floor(Math.random() * 1500)));
+
+// Outlier detection parameters
+const OUTLIER_MAD_THRESHOLD = Number(process.env.OUTLIER_MAD_THRESHOLD || 3); // Modified Z-score threshold
+const MIN_SAMPLES_FOR_OUTLIER_DETECTION = Number(process.env.MIN_SAMPLES_FOR_OUTLIER_DETECTION || 5);
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -45,10 +51,30 @@ function median(arr) {
   const mid = Math.floor(a.length / 2);
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
 }
+
 function mad(arr, med) {
   if (!arr || !arr.length) return null;
   const diffs = arr.map(x => Math.abs(x - med));
   return median(diffs);
+}
+
+// Modified Z-score outlier detection using MAD (Median Absolute Deviation)
+function detectOutliers(values, threshold = OUTLIER_MAD_THRESHOLD) {
+  if (!values || values.length < MIN_SAMPLES_FOR_OUTLIER_DETECTION) {
+    return values.map(() => false); // Not enough data for outlier detection
+  }
+  
+  const med = median(values);
+  const madValue = mad(values, med);
+  
+  if (madValue === 0) {
+    return values.map(() => false); // All values are identical, no outliers
+  }
+  
+  return values.map(val => {
+    const modifiedZScore = 0.6745 * (val - med) / madValue;
+    return Math.abs(modifiedZScore) > threshold;
+  });
 }
 
 // fetch up to MAX_PAGES pages for an item. stop early if last entry is older than cutoff7d
@@ -101,14 +127,15 @@ async function fetchAllHistory(id) {
   return allPrices;
 }
 
-// compute weighted per-unit average for a given window in days (1 or 7)
-function computeWindowStats(trades, windowDays) {
+// compute weighted per-unit average for a given window in days (1 or 7) with outlier detection
+function computeWindowStats(trades, windowDays, itemKey) {
   const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
   const normalized = (Array.isArray(trades) ? trades : []).map(p => ({
     ts: parseTimestampToMs(p.time),
     price: Number(p.price),
-    amount: Number(p.amount || 1)
+    amount: Number(p.amount || 1),
+    original: p // Keep original for outlier logging
   })).filter(p =>
     !Number.isNaN(p.ts) &&
     p.ts >= cutoff &&
@@ -117,7 +144,15 @@ function computeWindowStats(trades, windowDays) {
     p.amount > 0
   );
 
-  if (normalized.length === 0) return { avg: null, count: 0, min: null, max: null, totalUnits: 0 };
+  if (normalized.length === 0) return { 
+    avg: null, 
+    count: 0, 
+    min: null, 
+    max: null, 
+    totalUnits: 0, 
+    outliers: [],
+    cleanCount: 0
+  };
 
   const candidateA = normalized.map(p => p.price);
   const candidateB = normalized.map(p => p.price / p.amount);
@@ -134,21 +169,67 @@ function computeWindowStats(trades, windowDays) {
   const chooseB = (relB < relA) || (medA > LARGE_THRESHOLD && medB < medA);
   const unitPrices = chooseB ? candidateB : candidateA;
 
-  const unitized = normalized.map((p, i) => ({
-    unitPrice: unitPrices[i],
-    amount: p.amount
-  })).filter(u => Number.isFinite(u.unitPrice) && u.amount > 0);
+  // Detect outliers based on unit prices
+  const outlierFlags = detectOutliers(unitPrices);
+  
+  const outliers = [];
+  const cleanData = [];
+  
+  normalized.forEach((p, i) => {
+    const unitPrice = unitPrices[i];
+    if (!Number.isFinite(unitPrice) || p.amount <= 0) return;
+    
+    if (outlierFlags[i]) {
+      outliers.push({
+        itemKey,
+        windowDays,
+        timestamp: new Date(p.ts).toISOString(),
+        price: p.price,
+        amount: p.amount,
+        unitPrice: Math.round(unitPrice),
+        detection: chooseB ? "price/amount" : "price",
+        reason: "MAD_outlier"
+      });
+    } else {
+      cleanData.push({
+        unitPrice,
+        amount: p.amount
+      });
+    }
+  });
 
-  if (unitized.length === 0) return { avg: null, count: 0, min: null, max: null, totalUnits: 0 };
+  if (cleanData.length === 0) return { 
+    avg: null, 
+    count: normalized.length, 
+    min: null, 
+    max: null, 
+    totalUnits: 0, 
+    outliers,
+    cleanCount: 0
+  };
 
-  const totalUnits = unitized.reduce((s, t) => s + t.amount, 0);
-  const weightedSum = unitized.reduce((s, t) => s + t.unitPrice * t.amount, 0);
+  const totalUnits = cleanData.reduce((s, t) => s + t.amount, 0);
+  const weightedSum = cleanData.reduce((s, t) => s + t.unitPrice * t.amount, 0);
   const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
-  const unitVals = unitized.map(u => u.unitPrice);
+  const unitVals = cleanData.map(u => u.unitPrice);
   const min = Math.round(Math.min(...unitVals));
   const max = Math.round(Math.max(...unitVals));
 
-  return { avg, count: unitized.length, min, max, totalUnits, detection: chooseB ? "price/amount" : "price", medianCandidateA: Math.round(medA || 0), medianCandidateB: Math.round(medB || 0), relMadA: relA, relMadB: relB };
+  return { 
+    avg, 
+    count: normalized.length, 
+    min, 
+    max, 
+    totalUnits, 
+    detection: chooseB ? "price/amount" : "price", 
+    medianCandidateA: Math.round(medA || 0), 
+    medianCandidateB: Math.round(medB || 0), 
+    relMadA: relA, 
+    relMadB: relB,
+    outliers,
+    cleanCount: cleanData.length,
+    outliersRemoved: outliers.length
+  };
 }
 
 function csvEscapeCell(cell){
@@ -159,22 +240,38 @@ function csvEscapeCell(cell){
 
 async function main() {
   const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
+  const allOutliers = {
+    updated: new Date().toISOString(),
+    region: REGION,
+    outlierDetectionSettings: {
+      madThreshold: OUTLIER_MAD_THRESHOLD,
+      minSamplesForDetection: MIN_SAMPLES_FOR_OUTLIER_DETECTION
+    },
+    outliers: []
+  };
 
   for (const [key, id] of Object.entries(ITEMS)) {
     try {
       const rawTrades = await fetchAllHistory(id);
 
-      const w24 = computeWindowStats(rawTrades, 1);
-      const w7 = computeWindowStats(rawTrades, 7);
+      const w24 = computeWindowStats(rawTrades, 1, key);
+      const w7 = computeWindowStats(rawTrades, 7, key);
+
+      // Collect outliers
+      allOutliers.outliers.push(...w24.outliers, ...w7.outliers);
 
       out.prices[key] = {
         id,
         avg24h: w24.avg,
         sampleCountLast24h: w24.count,
+        cleanSampleCount24h: w24.cleanCount,
+        outliersRemoved24h: w24.outliersRemoved,
         min24h: w24.min,
         max24h: w24.max,
         avg7d: w7.avg,
         sampleCountLast7d: w7.count,
+        cleanSampleCount7d: w7.cleanCount,
+        outliersRemoved7d: w7.outliersRemoved,
         min7d: w7.min,
         max7d: w7.max,
         totalUnits7d: w7.totalUnits
@@ -196,6 +293,14 @@ async function main() {
     console.error("Failed to write JSON:", err);
   }
 
+  // write outliers JSON
+  try {
+    await fs.writeFile(OUTLIERS_JSON, JSON.stringify(allOutliers, null, 2), "utf8");
+    console.log(`Wrote ${OUTLIERS_JSON} with ${allOutliers.outliers.length} outliers detected`);
+  } catch (err) {
+    console.error("Failed to write outliers JSON:", err);
+  }
+
   // write CSV (header + rows)
   try {
     const header = [
@@ -203,10 +308,14 @@ async function main() {
       "id",
       "avg24h",
       "sampleCountLast24h",
+      "cleanSampleCount24h",
+      "outliersRemoved24h",
       "min24h",
       "max24h",
       "avg7d",
       "sampleCountLast7d",
+      "cleanSampleCount7d",
+      "outliersRemoved7d",
       "min7d",
       "max7d",
       "totalUnits7d"
@@ -218,10 +327,14 @@ async function main() {
         v.id ?? "",
         v.avg24h ?? "",
         v.sampleCountLast24h ?? "",
+        v.cleanSampleCount24h ?? "",
+        v.outliersRemoved24h ?? "",
         v.min24h ?? "",
         v.max24h ?? "",
         v.avg7d ?? "",
         v.sampleCountLast7d ?? "",
+        v.cleanSampleCount7d ?? "",
+        v.outliersRemoved7d ?? "",
         v.min7d ?? "",
         v.max7d ?? "",
         v.totalUnits7d ?? ""
