@@ -2,7 +2,7 @@
 // ESM, Node 18+ (no npm deps)
 // Polls stalcraftdb auction-history, computes weighted 24h & 7d per-unit averages,
 // writes prices.json and prices.csv next to each other.
-// Now with outlier detection and logging for RWT detection
+// Now with proper unit price calculation and outlier detection
 
 import fs from "fs/promises";
 
@@ -29,8 +29,8 @@ const MAX_PAGES = Number(process.env.MAX_PAGES || 10); // increase if needed for
 const PER_PAGE_DELAY_MS = Number(process.env.PER_PAGE_DELAY_MS || (500 + Math.floor(Math.random() * 300)));
 const BETWEEN_ITEMS_MS = Number(process.env.BETWEEN_ITEMS_MS || (5500 + Math.floor(Math.random() * 1500)));
 
-// Outlier detection parameters
-const OUTLIER_MAD_THRESHOLD = Number(process.env.OUTLIER_MAD_THRESHOLD || 3); // Modified Z-score threshold
+// Outlier detection parameters  
+const OUTLIER_MAD_THRESHOLD = Number(process.env.OUTLIER_MAD_THRESHOLD || 2.5);
 const MIN_SAMPLES_FOR_OUTLIER_DETECTION = Number(process.env.MIN_SAMPLES_FOR_OUTLIER_DETECTION || 5);
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -58,21 +58,21 @@ function mad(arr, med) {
   return median(diffs);
 }
 
-// Modified Z-score outlier detection using MAD (Median Absolute Deviation)
-function detectOutliers(values, threshold = OUTLIER_MAD_THRESHOLD) {
-  if (!values || values.length < MIN_SAMPLES_FOR_OUTLIER_DETECTION) {
-    return values.map(() => false); // Not enough data for outlier detection
+// Modified Z-score outlier detection using MAD
+function detectOutliers(unitPrices, threshold = OUTLIER_MAD_THRESHOLD) {
+  if (!unitPrices || unitPrices.length < MIN_SAMPLES_FOR_OUTLIER_DETECTION) {
+    return unitPrices.map(() => false);
   }
   
-  const med = median(values);
-  const madValue = mad(values, med);
+  const med = median(unitPrices);
+  const madValue = mad(unitPrices, med);
   
   if (madValue === 0) {
-    return values.map(() => false); // All values are identical, no outliers
+    return unitPrices.map(() => false); // All values identical
   }
   
-  return values.map(val => {
-    const modifiedZScore = 0.6745 * (val - med) / madValue;
+  return unitPrices.map(price => {
+    const modifiedZScore = 0.6745 * (price - med) / madValue;
     return Math.abs(modifiedZScore) > threshold;
   });
 }
@@ -131,11 +131,12 @@ async function fetchAllHistory(id) {
 function computeWindowStats(trades, windowDays, itemKey) {
   const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
+  // Always normalize to get unit prices
   const normalized = (Array.isArray(trades) ? trades : []).map(p => ({
     ts: parseTimestampToMs(p.time),
     price: Number(p.price),
     amount: Number(p.amount || 1),
-    original: p // Keep original for outlier logging
+    original: p
   })).filter(p =>
     !Number.isNaN(p.ts) &&
     p.ts >= cutoff &&
@@ -154,53 +155,62 @@ function computeWindowStats(trades, windowDays, itemKey) {
     cleanCount: 0
   };
 
-  const candidateA = normalized.map(p => p.price);
-  const candidateB = normalized.map(p => p.price / p.amount);
+  // ALWAYS calculate unit prices (price per single item)
+  const unitPrices = normalized.map(p => p.price / p.amount);
+  
+  // Filter out any invalid unit prices
+  const validEntries = [];
+  normalized.forEach((p, i) => {
+    const unitPrice = unitPrices[i];
+    if (Number.isFinite(unitPrice) && unitPrice > 0) {
+      validEntries.push({
+        ...p,
+        unitPrice
+      });
+    }
+  });
 
-  const medA = median(candidateA);
-  const medB = median(candidateB);
-  const madA = mad(candidateA, medA);
-  const madB = mad(candidateB, medB);
+  if (validEntries.length === 0) return {
+    avg: null, 
+    count: normalized.length, 
+    min: null, 
+    max: null, 
+    totalUnits: 0, 
+    outliers: [],
+    cleanCount: 0
+  };
 
-  const relA = (medA && medA !== 0) ? (madA / Math.abs(medA)) : Infinity;
-  const relB = (medB && medB !== 0) ? (madB / Math.abs(medB)) : Infinity;
-  const LARGE_THRESHOLD = 1e6;
-
-  const chooseB = (relB < relA) || (medA > LARGE_THRESHOLD && medB < medA);
-  const unitPrices = chooseB ? candidateB : candidateA;
-
+  // Extract just the unit prices for outlier detection
+  const validUnitPrices = validEntries.map(e => e.unitPrice);
+  
   // Detect outliers based on unit prices
-  const outlierFlags = detectOutliers(unitPrices);
+  const outlierFlags = detectOutliers(validUnitPrices);
   
   const outliers = [];
   const cleanData = [];
   
-  normalized.forEach((p, i) => {
-    const unitPrice = unitPrices[i];
-    if (!Number.isFinite(unitPrice) || p.amount <= 0) return;
-    
+  validEntries.forEach((entry, i) => {
     if (outlierFlags[i]) {
       outliers.push({
         itemKey,
         windowDays,
-        timestamp: new Date(p.ts).toISOString(),
-        price: p.price,
-        amount: p.amount,
-        unitPrice: Math.round(unitPrice),
-        detection: chooseB ? "price/amount" : "price",
+        timestamp: new Date(entry.ts).toISOString(),
+        price: entry.price,
+        amount: entry.amount,
+        unitPrice: Math.round(entry.unitPrice),
         reason: "MAD_outlier"
       });
     } else {
       cleanData.push({
-        unitPrice,
-        amount: p.amount
+        unitPrice: entry.unitPrice,
+        amount: entry.amount
       });
     }
   });
 
   if (cleanData.length === 0) return { 
     avg: null, 
-    count: normalized.length, 
+    count: validEntries.length, 
     min: null, 
     max: null, 
     totalUnits: 0, 
@@ -208,6 +218,7 @@ function computeWindowStats(trades, windowDays, itemKey) {
     cleanCount: 0
   };
 
+  // Calculate weighted average using clean data
   const totalUnits = cleanData.reduce((s, t) => s + t.amount, 0);
   const weightedSum = cleanData.reduce((s, t) => s + t.unitPrice * t.amount, 0);
   const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
@@ -217,15 +228,10 @@ function computeWindowStats(trades, windowDays, itemKey) {
 
   return { 
     avg, 
-    count: normalized.length, 
+    count: validEntries.length, 
     min, 
     max, 
     totalUnits, 
-    detection: chooseB ? "price/amount" : "price", 
-    medianCandidateA: Math.round(medA || 0), 
-    medianCandidateB: Math.round(medB || 0), 
-    relMadA: relA, 
-    relMadB: relB,
     outliers,
     cleanCount: cleanData.length,
     outliersRemoved: outliers.length
@@ -252,10 +258,17 @@ async function main() {
 
   for (const [key, id] of Object.entries(ITEMS)) {
     try {
+      console.log(`Processing ${key} (${id})...`);
       const rawTrades = await fetchAllHistory(id);
 
       const w24 = computeWindowStats(rawTrades, 1, key);
       const w7 = computeWindowStats(rawTrades, 7, key);
+
+      // Log some debug info for water_carrier
+      if (key === 'water_carrier') {
+        console.log(`Water carrier debug - 24h: ${w24.count} samples, ${w24.cleanCount} clean, avg: ${w24.avg}`);
+        console.log(`Water carrier debug - 7d: ${w7.count} samples, ${w7.cleanCount} clean, avg: ${w7.avg}`);
+      }
 
       // Collect outliers
       allOutliers.outliers.push(...w24.outliers, ...w7.outliers);
