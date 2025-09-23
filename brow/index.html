@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stalcraft Price Checker</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #222;
+      color: #ddd;
+      padding: 1em;
+    }
+    input, button {
+      padding: 0.4em;
+      margin: 0.2em;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #333;
+      color: #ddd;
+    }
+    pre {
+      background: #111;
+      padding: 1em;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Stalcraft Price Checker</h1>
+  <p>Enter an item ID (example: <code>wokd</code>)</p>
+  <input id="itemId" type="text" placeholder="Item ID" />
+  <button id="fetchBtn">Fetch Stats</button>
+  <pre id="output">Waiting…</pre>
+
+  <script type="module">
+    import { getItemStats } from "./drop_in.js";
+
+    const input = document.getElementById("itemId");
+    const btn = document.getElementById("fetchBtn");
+    const out = document.getElementById("output");
+
+    btn.addEventListener("click", async () => {
+      const id = input.value.trim();
+      if (!id) return;
+      out.textContent = "Fetching…";
+      try {
+        const stats = await getItemStats(id);
+        out.textContent = JSON.stringify(stats, null, 2);
+      } catch (err) {
+        out.textContent = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
