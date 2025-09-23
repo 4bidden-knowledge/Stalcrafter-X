@@ -2,7 +2,7 @@
 // ESM, Node 18+ (no npm deps)
 // Polls stalcraftdb auction-history, computes weighted 24h & 7d per-unit averages,
 // writes prices.json and prices.csv next to each other.
-// Now with proper unit price calculation and outlier detection
+// Now with proper unit price calculation, outlier detection, and mean calculations
 
 import fs from "fs/promises";
 
@@ -50,6 +50,11 @@ function median(arr) {
   const a = [...arr].sort((x, y) => x - y);
   const mid = Math.floor(a.length / 2);
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+}
+
+function mean(arr) {
+  if (!arr || !arr.length) return null;
+  return arr.reduce((sum, val) => sum + val, 0) / arr.length;
 }
 
 function mad(arr, med) {
@@ -127,7 +132,7 @@ async function fetchAllHistory(id) {
   return allPrices;
 }
 
-// compute weighted per-unit average for a given window in days (1 or 7) with outlier detection
+// compute weighted per-unit average for a given window in days (1 or 7) with outlier detection and mean calculation
 function computeWindowStats(trades, windowDays, itemKey) {
   const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
@@ -147,6 +152,8 @@ function computeWindowStats(trades, windowDays, itemKey) {
 
   if (normalized.length === 0) return { 
     avg: null, 
+    mean: null,
+    median: null,
     count: 0, 
     min: null, 
     max: null, 
@@ -172,6 +179,8 @@ function computeWindowStats(trades, windowDays, itemKey) {
 
   if (validEntries.length === 0) return {
     avg: null, 
+    mean: null,
+    median: null,
     count: normalized.length, 
     min: null, 
     max: null, 
@@ -210,6 +219,8 @@ function computeWindowStats(trades, windowDays, itemKey) {
 
   if (cleanData.length === 0) return { 
     avg: null, 
+    mean: null,
+    median: null,
     count: validEntries.length, 
     min: null, 
     max: null, 
@@ -225,9 +236,13 @@ function computeWindowStats(trades, windowDays, itemKey) {
   const unitVals = cleanData.map(u => u.unitPrice);
   const min = Math.round(Math.min(...unitVals));
   const max = Math.round(Math.max(...unitVals));
+  const meanVal = Math.round(mean(unitVals));
+  const medianVal = Math.round(median(unitVals));
 
   return { 
     avg, 
+    mean: meanVal,
+    median: medianVal,
     count: validEntries.length, 
     min, 
     max, 
@@ -266,8 +281,8 @@ async function main() {
 
       // Log some debug info for water_carrier
       if (key === 'water_carrier') {
-        console.log(`Water carrier debug - 24h: ${w24.count} samples, ${w24.cleanCount} clean, avg: ${w24.avg}`);
-        console.log(`Water carrier debug - 7d: ${w7.count} samples, ${w7.cleanCount} clean, avg: ${w7.avg}`);
+        console.log(`Water carrier debug - 24h: ${w24.count} samples, ${w24.cleanCount} clean, avg: ${w24.avg}, mean: ${w24.mean}`);
+        console.log(`Water carrier debug - 7d: ${w7.count} samples, ${w7.cleanCount} clean, avg: ${w7.avg}, mean: ${w7.mean}`);
       }
 
       // Collect outliers
@@ -276,12 +291,16 @@ async function main() {
       out.prices[key] = {
         id,
         avg24h: w24.avg,
+        mean24h: w24.mean,
+        median24h: w24.median,
         sampleCountLast24h: w24.count,
         cleanSampleCount24h: w24.cleanCount,
         outliersRemoved24h: w24.outliersRemoved,
         min24h: w24.min,
         max24h: w24.max,
         avg7d: w7.avg,
+        mean7d: w7.mean,
+        median7d: w7.median,
         sampleCountLast7d: w7.count,
         cleanSampleCount7d: w7.cleanCount,
         outliersRemoved7d: w7.outliersRemoved,
@@ -320,12 +339,16 @@ async function main() {
       "key",
       "id",
       "avg24h",
+      "mean24h",
+      "median24h",
       "sampleCountLast24h",
       "cleanSampleCount24h",
       "outliersRemoved24h",
       "min24h",
       "max24h",
       "avg7d",
+      "mean7d",
+      "median7d",
       "sampleCountLast7d",
       "cleanSampleCount7d",
       "outliersRemoved7d",
@@ -339,12 +362,16 @@ async function main() {
         k,
         v.id ?? "",
         v.avg24h ?? "",
+        v.mean24h ?? "",
+        v.median24h ?? "",
         v.sampleCountLast24h ?? "",
         v.cleanSampleCount24h ?? "",
         v.outliersRemoved24h ?? "",
         v.min24h ?? "",
         v.max24h ?? "",
         v.avg7d ?? "",
+        v.mean7d ?? "",
+        v.median7d ?? "",
         v.sampleCountLast7d ?? "",
         v.cleanSampleCount7d ?? "",
         v.outliersRemoved7d ?? "",
