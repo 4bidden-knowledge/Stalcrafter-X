@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stalcraft Custom Price Fetcher</title>
+<style>
+  :root{
+    --bg: #f0f3f6;
+    --card: #f7fafc;
+    --muted: #6b7280;
+    --text: #0f1724;
+    --accent: #2b6cb0;
+    --shadow: rgba(16,24,40,0.06);
+    --warn: #b45309;
+    --success: #059669;
+    --error: #dc2626;
+  }
+  html,body{height:100%}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    margin:18px;
+    background:var(--bg);
+    color:var(--text);
+  }
+  header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  h1{font-size:20px;margin:0}
+  .grid{display:grid;gap:14px;grid-template-columns:1fr;max-width:1100px}
+  .card{
+    background:linear-gradient(180deg,var(--card),#fbfdff);
+    border-radius:10px;
+    padding:14px;
+    box-shadow:0 6px 18px var(--shadow);
+    border: 1px solid rgba(15,23,36,0.04);
+  }
+  .form-group{margin-bottom:12px}
+  label{display:block;margin-bottom:4px;font-weight:500;color:var(--text)}
+  input[type=text], select{
+    width:100%;
+    max-width:300px;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid rgba(15,23,36,0.08);
+    font-size:14px
+  }
+  button{
+    background:var(--accent);
+    color:white;
+    border:0;
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    box-shadow:0 2px 8px rgba(43,108,176,0.12);
+    font-size:14px
+  }
+  button:hover{background:#1e5a96}
+  button:disabled{background:#9ca3af;cursor:not-allowed}
+  .loading{color:var(--muted)}
+  .error{color:var(--error);background:#fef2f2;padding:8px;border-radius:4px;margin:8px 0}
+  .success{color:var(--success)}
+  .muted{color:var(--muted);font-size:13px}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+  .stat-item{background:rgba(43,108,176,0.05);padding:8px 12px;border-radius:6px}
+  .stat-value{font-size:16px;font-weight:600;color:var(--text)}
+  .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+  .outlier-list{max-height:200px;overflow-y:auto;background:#f9fafb;border-radius:6px;padding:8px;margin:8px 0}
+  .outlier-item{font-size:12px;color:var(--muted);margin:2px 0}
+  .trade-list{max-height:300px;overflow-y:auto;background:#f9fafb;border-radius:6px;padding:8px;margin:8px 0}
+  .trade-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:4px 8px;
+    border-bottom:1px solid rgba(15,23,36,0.04);
+    font-size:13px
+  }
+  .trade-item:last-child{border-bottom:none}
+  .trade-price{font-weight:600}
+  .trade-unit-price{color:var(--muted)}
+  .trade-time{color:var(--muted);font-size:11px}
+  @media(min-width:900px){ .grid{grid-template-columns:400px 1fr} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stalcraft Custom Price Fetcher</h1>
+  <div class="muted">Fetch prices for any item by ID</div>
+</header>
+
+<main class="grid">
+  <div class="card">
+    <h3 style="margin-top:0">Fetch Item Price</h3>
+    
+    <div class="form-group">
+      <label for="itemId">Item ID:</label>
+      <input type="text" id="itemId" placeholder="e.g., y3nmw, l0og1, etc." />
+      <div class="muted">Enter the StalcraftDB item ID (found in the URL)</div>
+    </div>
+
+    <div class="form-group">
+      <label for="region">Region:</label>
+      <select id="region">
+        <option value="na">North America</option>
+        <option value="eu">Europe</option>
+        <option value="ru">Russia</option>
+        <option value="sea">Southeast Asia</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="maxPages">Max Pages:</label>
+      <input type="text" id="maxPages" value="10" style="max-width:100px" />
+      <div class="muted">Number of pages to fetch (more = slower but more data)</div>
+    </div>
+
+    <button id="fetchBtn" onclick="fetchItemPrice()">Fetch Price Data</button>
+    
+    <div id="status" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Price Analysis</h3>
+    <div id="results">
+      <div class="muted">Enter an item ID and click fetch to see price analysis</div>
+    </div>
+  </div>
+</main>
+
+<script>
+// Configuration
+const OUTLIER_MAD_THRESHOLD = 2.5;
+const MIN_SAMPLES_FOR_OUTLIER_DETECTION = 5;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function parseTimestampToMs(raw) {
+  if (raw == null) return NaN;
+  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw;
+  const parsed = Date.parse(raw);
+  if (!Number.isNaN(parsed)) return parsed;
+  const asNum = Number(raw);
+  if (!Number.isNaN(asNum)) return asNum < 1e12 ? asNum * 1000 : asNum;
+  return NaN;
+}
+
+function median(arr) {
+  if (!arr || !arr.length) return null;
+  const a = [...arr].sort((x, y) => x - y);
+  const mid = Math.floor(a.length / 2);
+  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+}
+
+function mean(arr) {
+  if (!arr || !arr.length) return null;
+  return arr.reduce((sum, val) => sum + val, 0) / arr.length;
+}
+
+function mad(arr, med) {
+  if (!arr || !arr.length) return null;
+  const diffs = arr.map(x => Math.abs(x - med));
+  return median(diffs);
+}
+
+function detectOutliers(unitPrices, threshold = OUTLIER_MAD_THRESHOLD) {
+  if (!unitPrices || unitPrices.length < MIN_SAMPLES_FOR_OUTLIER_DETECTION) {
+    return unitPrices.map(() => false);
+  }
+  
+  const med = median(unitPrices);
+  const madValue = mad(unitPrices, med);
+  
+  if (madValue === 0) {
+    return unitPrices.map(() => false);
+  }
+  
+  return unitPrices.map(price => {
+    const modifiedZScore = 0.6745 * (price - med) / madValue;
+    return Math.abs(modifiedZScore) > threshold;
+  });
+}
+
+async function fetchAllHistory(id, region, maxPages) {
+  const cutoff7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const headersBase = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
+    "Connection": "keep-alive",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin"
+  };
+
+  let allPrices = [];
+  for (let page = 0; page < maxPages; page++) {
+    const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${region}&page=${page}`;
+    const headers = { ...headersBase, "Referer": `https://stalcraftdb.net/${region}/${id}` };
+
+    let resp;
+    try {
+      resp = await fetch(url, { method: "GET", headers });
+    } catch (err) {
+      throw new Error(`Network error for ${url}: ${err?.message || err}`);
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+
+    let data;
+    try {
+      data = await resp.json();
+    } catch (err) {
+      throw new Error(`Invalid JSON from ${url}: ${err?.message || err}`);
+    }
+
+    const prices = Array.isArray(data.prices) ? data.prices : (Array.isArray(data) ? data : []);
+    if (!prices.length) break;
+
+    allPrices.push(...prices);
+
+    const last = prices[prices.length - 1];
+    const lastTs = parseTimestampToMs(last?.time);
+    if (!Number.isNaN(lastTs) && lastTs < cutoff7) break;
+
+    if (page < maxPages - 1) await sleep(200); // Reduced delay for UI responsiveness
+  }
+  return allPrices;
+}
+
+function computeWindowStats(trades, windowDays) {
+  const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+
+  const normalized = (Array.isArray(trades) ? trades : []).map(p => ({
+    ts: parseTimestampToMs(p.time),
+    price: Number(p.price),
+    amount: Number(p.amount || 1),
+    original: p
+  })).filter(p =>
+    !Number.isNaN(p.ts) &&
+    p.ts >= cutoff &&
+    Number.isFinite(p.price) &&
+    p.price > 0 &&
+    p.amount > 0
+  );
+
+  if (normalized.length === 0) return { 
+    avg: null, count: 0, min: null, max: null, mean: null, median: null,
+    totalUnits: 0, outliers: [], cleanCount: 0, trades: []
+  };
+
+  const unitPrices = normalized.map(p => p.price / p.amount);
+  
+  const validEntries = [];
+  normalized.forEach((p, i) => {
+    const unitPrice = unitPrices[i];
+    if (Number.isFinite(unitPrice) && unitPrice > 0) {
+      validEntries.push({
+        ...p,
+        unitPrice
+      });
+    }
+  });
+
+  if (validEntries.length === 0) return {
+    avg: null, count: normalized.length, min: null, max: null, mean: null, median: null,
+    totalUnits: 0, outliers: [], cleanCount: 0, trades: []
+  };
+
+  const validUnitPrices = validEntries.map(e => e.unitPrice);
+  const outlierFlags = detectOutliers(validUnitPrices);
+  
+  const outliers = [];
+  const cleanData = [];
+  
+  validEntries.forEach((entry, i) => {
+    if (outlierFlags[i]) {
+      outliers.push({
+        timestamp: new Date(entry.ts).toISOString(),
+        price: entry.price,
+        amount: entry.amount,
+        unitPrice: Math.round(entry.unitPrice),
+        reason: "MAD_outlier"
+      });
+    } else {
+      cleanData.push({
+        unitPrice: entry.unitPrice,
+        amount: entry.amount,
+        timestamp: entry.ts,
+        price: entry.price
+      });
+    }
+  });
+
+  if (cleanData.length === 0) return { 
+    avg: null, count: validEntries.length, min: null, max: null, mean: null, median: null,
+    totalUnits: 0, outliers, cleanCount: 0, trades: validEntries.slice(0, 50)
+  };
+
+  const totalUnits = cleanData.reduce((s, t) => s + t.amount, 0);
+  const weightedSum = cleanData.reduce((s, t) => s + t.unitPrice * t.amount, 0);
+  const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
+  const unitVals = cleanData.map(u => u.unitPrice);
+  const min = Math.round(Math.min(...unitVals));
+  const max = Math.round(Math.max(...unitVals));
+  const meanVal = Math.round(mean(unitVals));
+  const medianVal = Math.round(median(unitVals));
+
+  return { 
+    avg, count: validEntries.length, min, max, mean: meanVal, median: medianVal,
+    totalUnits, outliers, cleanCount: cleanData.length,
+    outliersRemoved: outliers.length,
+    trades: validEntries.slice(0, 50) // Show first 50 trades
+  };
+}
+
+function formatNumber(num) {
+  if (num == null) return '—';
+  return num.toLocaleString();
+}
+
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleString();
+}
+
+async function fetchItemPrice() {
+  const itemId = document.getElementById('itemId').value.trim();
+  const region = document.getElementById('region').value;
+  const maxPages = parseInt(document.getElementById('maxPages').value) || 10;
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  const fetchBtn = document.getElementById('fetchBtn');
+
+  if (!itemId) {
+    status.innerHTML = '<div class="error">Please enter an item ID</div>';
+    return;
+  }
+
+  fetchBtn.disabled = true;
+  status.innerHTML = '<div class="loading">Fetching price data...</div>';
+  results.innerHTML = '<div class="loading">Processing data...</div>';
+
+  try {
+    const rawTrades = await fetchAllHistory(itemId, region, maxPages);
+    
+    if (rawTrades.length === 0) {
+      status.innerHTML = '<div class="error">No trade data found for this item</div>';
+      results.innerHTML = '<div class="muted">No data available</div>';
+      return;
+    }
+
+    const w24 = computeWindowStats(rawTrades, 1);
+    const w7 = computeWindowStats(rawTrades, 7);
+
+    status.innerHTML = `<div class="success">✓ Fetched ${rawTrades.length} total trades</div>`;
+
+    results.innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w24.avg)}</div>
+          <div class="stat-label">24h Avg Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w24.mean)}</div>
+          <div class="stat-label">24h Mean Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w24.median)}</div>
+          <div class="stat-label">24h Median Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w7.avg)}</div>
+          <div class="stat-label">7d Avg Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w7.mean)}</div>
+          <div class="stat-label">7d Mean Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w7.median)}</div>
+          <div class="stat-label">7d Median Price</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${w24.cleanCount}</div>
+          <div class="stat-label">24h Clean Samples</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${w7.cleanCount}</div>
+          <div class="stat-label">7d Clean Samples</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${w24.outliersRemoved || 0}</div>
+          <div class="stat-label">24h Outliers</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${w7.outliersRemoved || 0}</div>
+          <div class="stat-label">7d Outliers</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w24.min)} - ${formatNumber(w24.max)}</div>
+          <div class="stat-label">24h Range</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${formatNumber(w7.min)} - ${formatNumber(w7.max)}</div>
+          <div class="stat-label">7d Range</div>
+        </div>
+      </div>
+
+      <h4>Recent Trades (Sample)</h4>
+      <div class="trade-list">
+        ${w7.trades.map(trade => `
+          <div class="trade-item">
+            <div>
+              <span class="trade-price">${formatNumber(trade.price)}</span>
+              <span class="muted">× ${trade.amount}</span>
+              <span class="trade-unit-price">(${formatNumber(Math.round(trade.unitPrice))}/unit)</span>
+            </div>
+            <div class="trade-time">${formatTime(trade.timestamp)}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${(w24.outliers.length > 0 || w7.outliers.length > 0) ? `
+        <h4>Outliers Detected</h4>
+        <div class="outlier-list">
+          ${[...w24.outliers, ...w7.outliers].map(outlier => `
+            <div class="outlier-item">
+              ${formatTime(outlier.timestamp)}: ${formatNumber(outlier.price)} × ${outlier.amount} 
+              (${formatNumber(outlier.unitPrice)}/unit) - ${outlier.reason}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+
+  } catch (error) {
+    status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    results.innerHTML = '<div class="muted">Failed to fetch data</div>';
+  } finally {
+    fetchBtn.disabled = false;
+  }
+}
+
+// Allow Enter key to trigger fetch
+document.getElementById('itemId').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    fetchItemPrice();
+  }
+});
+</script>
+</body>
+</html>
