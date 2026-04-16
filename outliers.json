@@ -1,5 +1,5 @@
 {
-  "updated": "2026-04-16T03:33:39.604Z",
+  "updated": "2026-04-16T14:03:41.051Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
@@ -13,6 +13,15 @@
       "price": 85000,
       "amount": 1,
       "unitPrice": 85000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "adv_spare",
+      "windowDays": 7,
+      "timestamp": "2026-04-16T10:05:17.000Z",
+      "price": 250000,
+      "amount": 6,
+      "unitPrice": 41667,
       "reason": "MAD_outlier"
     },
     {
@@ -342,6 +351,15 @@
     {
       "itemKey": "adv_tool",
       "windowDays": 1,
+      "timestamp": "2026-04-15T20:31:39.000Z",
+      "price": 85000,
+      "amount": 1,
+      "unitPrice": 85000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "adv_tool",
+      "windowDays": 1,
       "timestamp": "2026-04-15T17:56:26.000Z",
       "price": 99999,
       "amount": 1,
@@ -576,6 +594,15 @@
     {
       "itemKey": "adv_tool",
       "windowDays": 7,
+      "timestamp": "2026-04-09T22:35:24.000Z",
+      "price": 600000,
+      "amount": 13,
+      "unitPrice": 46154,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "adv_tool",
+      "windowDays": 7,
       "timestamp": "2026-04-09T16:19:51.000Z",
       "price": 4599000,
       "amount": 50,
@@ -592,12 +619,57 @@
       "reason": "MAD_outlier"
     },
     {
-      "itemKey": "adv_tool",
-      "windowDays": 7,
-      "timestamp": "2026-04-09T09:06:46.000Z",
-      "price": 655550,
+      "itemKey": "std_tool",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T12:46:03.000Z",
+      "price": 39999,
       "amount": 1,
-      "unitPrice": 655550,
+      "unitPrice": 39999,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "std_tool",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T07:14:04.000Z",
+      "price": 39999,
+      "amount": 1,
+      "unitPrice": 39999,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "std_tool",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T06:54:33.000Z",
+      "price": 39999,
+      "amount": 1,
+      "unitPrice": 39999,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "std_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-16T12:46:03.000Z",
+      "price": 39999,
+      "amount": 1,
+      "unitPrice": 39999,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "std_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-16T07:14:04.000Z",
+      "price": 39999,
+      "amount": 1,
+      "unitPrice": 39999,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "std_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-16T06:54:33.000Z",
+      "price": 39999,
+      "amount": 1,
+      "unitPrice": 39999,
       "reason": "MAD_outlier"
     },
     {
@@ -607,6 +679,78 @@
       "price": 40000,
       "amount": 1,
       "unitPrice": 40000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "cheap_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-14T15:32:00.000Z",
+      "price": 25001,
+      "amount": 1,
+      "unitPrice": 25001,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "cheap_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-13T07:10:33.000Z",
+      "price": 50000,
+      "amount": 3,
+      "unitPrice": 16667,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "cheap_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-12T17:43:27.000Z",
+      "price": 29000,
+      "amount": 12,
+      "unitPrice": 2417,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "cheap_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-11T17:05:16.000Z",
+      "price": 18000,
+      "amount": 1,
+      "unitPrice": 18000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "cheap_tool",
+      "windowDays": 7,
+      "timestamp": "2026-04-09T17:33:06.000Z",
+      "price": 14000,
+      "amount": 1,
+      "unitPrice": 14000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "str_boar",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T12:16:52.000Z",
+      "price": 50000,
+      "amount": 7,
+      "unitPrice": 7143,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "str_boar",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T12:16:29.000Z",
+      "price": 50000,
+      "amount": 7,
+      "unitPrice": 7143,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "str_boar",
+      "windowDays": 1,
+      "timestamp": "2026-04-16T11:23:29.000Z",
+      "price": 21500,
+      "amount": 3,
+      "unitPrice": 7167,
       "reason": "MAD_outlier"
     },
     {
@@ -715,33 +859,6 @@
       "price": 35999,
       "amount": 7,
       "unitPrice": 5143,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "str_boar",
-      "windowDays": 1,
-      "timestamp": "2026-04-15T12:44:55.000Z",
-      "price": 50000,
-      "amount": 7,
-      "unitPrice": 7143,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "str_boar",
-      "windowDays": 1,
-      "timestamp": "2026-04-15T12:44:54.000Z",
-      "price": 50000,
-      "amount": 7,
-      "unitPrice": 7143,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "str_boar",
-      "windowDays": 1,
-      "timestamp": "2026-04-15T12:44:50.000Z",
-      "price": 50000,
-      "amount": 7,
-      "unitPrice": 7143,
       "reason": "MAD_outlier"
     },
     {
@@ -909,6 +1026,15 @@
     {
       "itemKey": "polymer",
       "windowDays": 7,
+      "timestamp": "2026-04-16T04:38:22.000Z",
+      "price": 339000,
+      "amount": 50,
+      "unitPrice": 6780,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "polymer",
+      "windowDays": 7,
       "timestamp": "2026-04-15T15:28:41.000Z",
       "price": 339000,
       "amount": 50,
@@ -940,15 +1066,6 @@
       "price": 340000,
       "amount": 50,
       "unitPrice": 6800,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "polymer",
-      "windowDays": 7,
-      "timestamp": "2026-04-14T05:51:35.000Z",
-      "price": 345000,
-      "amount": 50,
-      "unitPrice": 6900,
       "reason": "MAD_outlier"
     },
     {
@@ -1016,15 +1133,6 @@
     },
     {
       "itemKey": "water_carrier",
-      "windowDays": 1,
-      "timestamp": "2026-04-15T16:56:10.000Z",
-      "price": 70000,
-      "amount": 50,
-      "unitPrice": 1400,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "water_carrier",
       "windowDays": 7,
       "timestamp": "2026-04-13T01:23:27.000Z",
       "price": 18000,
@@ -1048,6 +1156,15 @@
       "price": 18000,
       "amount": 50,
       "unitPrice": 360,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "plastic_bottle",
+      "windowDays": 1,
+      "timestamp": "2026-04-15T18:58:52.000Z",
+      "price": 10000,
+      "amount": 4,
+      "unitPrice": 2500,
       "reason": "MAD_outlier"
     },
     {
@@ -1273,15 +1390,6 @@
       "price": 90000,
       "amount": 3,
       "unitPrice": 30000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "ammonia",
-      "windowDays": 7,
-      "timestamp": "2026-04-09T05:23:46.000Z",
-      "price": 9000,
-      "amount": 1,
-      "unitPrice": 9000,
       "reason": "MAD_outlier"
     }
   ]
