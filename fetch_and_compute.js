@@ -1,293 +1,146 @@
 // fetch_and_compute.js
 // ESM, Node 18+ (no npm deps)
-// Polls stalcraftdb auction-history, computes weighted 24h & 7d per-unit averages,
-// writes prices.json and prices.csv next to each other.
-// Now with proper unit price calculation, outlier detection, and mean calculations
+//
+// Polls stalcraftdb auction-history for the items in items.json, merges each run
+// into history/, and writes:
+//
+//   prices.json / prices.csv  weighted 24h & 7d per-unit averages (schema
+//                             unchanged — the crafting calculator reads these)
+//   outliers.json             audit trail of MAD-removed trades
+//   market.json               richer feed: windows, quality tiers, provenance
+//
+// The host hands out synthetic stubs at random and bans clients that exceed its
+// rate limit, so see lib/source.js for how both are handled.
 
 import fs from "fs/promises";
-
-const ITEMS = {
-  "adv_spare": "y3nmw",
-  "std_spare": "l0og1",
-  "cheap_spare": "j0w96",
-  "adv_tool": "4q7pl",
-  "std_tool": "qjqw9",
-  "cheap_tool": "wjlrd",
-  "str_boar": "5lo3o",
-  "polymer":  "jl26",
-  "water_carrier": "m22k",
-  "plastic_bottle": "pry2",
-  "ammonia": "40vn"
-};
+import { Source, BannedError } from "./lib/source.js";
+import { computeWindowStats, qualityTiers, normalise } from "./lib/stats.js";
+import { mergeHistory } from "./lib/store.js";
 
 const REGION = process.env.REGION || "na";
 const OUTPUT_JSON = process.env.OUTPUT_JSON || "prices.json";
 const OUTPUT_CSV = OUTPUT_JSON.replace(/\.json$/i, "") + ".csv";
 const OUTLIERS_JSON = process.env.OUTLIERS_JSON || "outliers.json";
+const MARKET_JSON = process.env.MARKET_JSON || "market.json";
+const ITEMS_FILE = process.env.ITEMS_FILE || "items.json";
+const MAX_PAGES = Number(process.env.MAX_PAGES || 10);
 
-const MAX_PAGES = Number(process.env.MAX_PAGES || 10); // increase if needed for heavy items
-const PER_PAGE_DELAY_MS = Number(process.env.PER_PAGE_DELAY_MS || (500 + Math.floor(Math.random() * 300)));
-const BETWEEN_ITEMS_MS = Number(process.env.BETWEEN_ITEMS_MS || (5500 + Math.floor(Math.random() * 1500)));
-
-// Outlier detection parameters  
-const OUTLIER_MAD_THRESHOLD = Number(process.env.OUTLIER_MAD_THRESHOLD || 2.5);
-const MIN_SAMPLES_FOR_OUTLIER_DETECTION = Number(process.env.MIN_SAMPLES_FOR_OUTLIER_DETECTION || 5);
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function parseTimestampToMs(raw) {
-  if (raw == null) return NaN;
-  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw;
-  const parsed = Date.parse(raw);
-  if (!Number.isNaN(parsed)) return parsed;
-  const asNum = Number(raw);
-  if (!Number.isNaN(asNum)) return asNum < 1e12 ? asNum * 1000 : asNum;
-  return NaN;
+async function loadItems() {
+  const raw = JSON.parse(await fs.readFile(ITEMS_FILE, "utf8"));
+  const items = Array.isArray(raw) ? raw : raw.items;
+  if (!Array.isArray(items) || !items.length) throw new Error(`No items defined in ${ITEMS_FILE}`);
+  return items.filter((item) => item && item.key && item.id);
 }
 
-function median(arr) {
-  if (!arr || !arr.length) return null;
-  const a = [...arr].sort((x, y) => x - y);
-  const mid = Math.floor(a.length / 2);
-  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
-}
-
-function mean(arr) {
-  if (!arr || !arr.length) return null;
-  return arr.reduce((sum, val) => sum + val, 0) / arr.length;
-}
-
-function mad(arr, med) {
-  if (!arr || !arr.length) return null;
-  const diffs = arr.map(x => Math.abs(x - med));
-  return median(diffs);
-}
-
-// Modified Z-score outlier detection using MAD
-function detectOutliers(unitPrices, threshold = OUTLIER_MAD_THRESHOLD) {
-  if (!unitPrices || unitPrices.length < MIN_SAMPLES_FOR_OUTLIER_DETECTION) {
-    return unitPrices.map(() => false);
+/** Previously observed totals, used to spot a collapsed response. */
+async function loadKnownTotals() {
+  try {
+    const market = JSON.parse(await fs.readFile(MARKET_JSON, "utf8"));
+    const out = {};
+    for (const [key, entry] of Object.entries(market.items ?? {})) {
+      if (entry.reportedTotal) out[key] = entry.reportedTotal;
+    }
+    return out;
+  } catch {
+    return {};
   }
-  
-  const med = median(unitPrices);
-  const madValue = mad(unitPrices, med);
-  
-  if (madValue === 0) {
-    return unitPrices.map(() => false); // All values identical
+}
+
+/** The last published feed, so a failed run can fall back to it. */
+async function loadPreviousPrices() {
+  try {
+    const previous = JSON.parse(await fs.readFile(OUTPUT_JSON, "utf8"));
+    return previous?.prices ?? {};
+  } catch {
+    return {};
   }
-  
-  return unitPrices.map(price => {
-    const modifiedZScore = 0.6745 * (price - med) / madValue;
-    return Math.abs(modifiedZScore) > threshold;
-  });
 }
 
-// fetch up to MAX_PAGES pages for an item. stop early if last entry is older than cutoff7d
-async function fetchAllHistory(id) {
-  const cutoff7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const headersBase = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Connection": "keep-alive",
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin"
-  };
+const hasUsablePrice = (entry) =>
+  Boolean(entry) && !entry.error && (Number.isFinite(entry.avg7d) || Number.isFinite(entry.avg24h));
 
-  let allPrices = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const url = `https://stalcraftdb.net/api/items/${id}/auction-history?region=${REGION}&page=${page}`;
-    const headers = { ...headersBase, "Referer": `https://stalcraftdb.net/${REGION}/${id}` };
-
-    let resp;
-    try {
-      resp = await fetch(url, { method: "GET", headers });
-    } catch (err) {
-      throw new Error(`Network error for ${url}: ${err?.message || err}`);
-    }
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-
-    let data;
-    try {
-      data = await resp.json();
-    } catch (err) {
-      throw new Error(`Invalid JSON from ${url}: ${err?.message || err}`);
-    }
-
-    // canonicalize possible shapes: prefer data.prices array, otherwise try data (if array)
-    const prices = Array.isArray(data.prices) ? data.prices : (Array.isArray(data) ? data : []);
-    if (!prices.length) break;
-
-    allPrices.push(...prices);
-
-    // stop early if last entry of page is older than 7-day cutoff
-    const last = prices[prices.length - 1];
-    const lastTs = parseTimestampToMs(last?.time);
-    if (!Number.isNaN(lastTs) && lastTs < cutoff7) break;
-
-    if (page < MAX_PAGES - 1) await sleep(PER_PAGE_DELAY_MS);
-  }
-  return allPrices;
-}
-
-// compute weighted per-unit average for a given window in days (1 or 7) with outlier detection and mean calculation
-function computeWindowStats(trades, windowDays, itemKey) {
-  const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-
-  // Always normalize to get unit prices
-  const normalized = (Array.isArray(trades) ? trades : []).map(p => ({
-    ts: parseTimestampToMs(p.time),
-    price: Number(p.price),
-    amount: Number(p.amount || 1),
-    original: p
-  })).filter(p =>
-    !Number.isNaN(p.ts) &&
-    p.ts >= cutoff &&
-    Number.isFinite(p.price) &&
-    p.price > 0 &&
-    p.amount > 0
-  );
-
-  if (normalized.length === 0) return { 
-    avg: null, 
-    mean: null,
-    median: null,
-    count: 0, 
-    min: null, 
-    max: null, 
-    totalUnits: 0, 
-    outliers: [],
-    cleanCount: 0
-  };
-
-  // ALWAYS calculate unit prices (price per single item)
-  const unitPrices = normalized.map(p => p.price / p.amount);
-  
-  // Filter out any invalid unit prices
-  const validEntries = [];
-  normalized.forEach((p, i) => {
-    const unitPrice = unitPrices[i];
-    if (Number.isFinite(unitPrice) && unitPrice > 0) {
-      validEntries.push({
-        ...p,
-        unitPrice
-      });
-    }
-  });
-
-  if (validEntries.length === 0) return {
-    avg: null, 
-    mean: null,
-    median: null,
-    count: normalized.length, 
-    min: null, 
-    max: null, 
-    totalUnits: 0, 
-    outliers: [],
-    cleanCount: 0
-  };
-
-  // Extract just the unit prices for outlier detection
-  const validUnitPrices = validEntries.map(e => e.unitPrice);
-  
-  // Detect outliers based on unit prices
-  const outlierFlags = detectOutliers(validUnitPrices);
-  
-  const outliers = [];
-  const cleanData = [];
-  
-  validEntries.forEach((entry, i) => {
-    if (outlierFlags[i]) {
-      outliers.push({
-        itemKey,
-        windowDays,
-        timestamp: new Date(entry.ts).toISOString(),
-        price: entry.price,
-        amount: entry.amount,
-        unitPrice: Math.round(entry.unitPrice),
-        reason: "MAD_outlier"
-      });
-    } else {
-      cleanData.push({
-        unitPrice: entry.unitPrice,
-        amount: entry.amount
-      });
-    }
-  });
-
-  if (cleanData.length === 0) return { 
-    avg: null, 
-    mean: null,
-    median: null,
-    count: validEntries.length, 
-    min: null, 
-    max: null, 
-    totalUnits: 0, 
-    outliers,
-    cleanCount: 0
-  };
-
-  // Calculate weighted average using clean data
-  const totalUnits = cleanData.reduce((s, t) => s + t.amount, 0);
-  const weightedSum = cleanData.reduce((s, t) => s + t.unitPrice * t.amount, 0);
-  const avg = totalUnits > 0 ? Math.round(weightedSum / totalUnits) : null;
-  const unitVals = cleanData.map(u => u.unitPrice);
-  const min = Math.round(Math.min(...unitVals));
-  const max = Math.round(Math.max(...unitVals));
-  const meanVal = Math.round(mean(unitVals));
-  const medianVal = Math.round(median(unitVals));
-
-  return { 
-    avg, 
-    mean: meanVal,
-    median: medianVal,
-    count: validEntries.length, 
-    min, 
-    max, 
-    totalUnits, 
-    outliers,
-    cleanCount: cleanData.length,
-    outliersRemoved: outliers.length
-  };
-}
-
-function csvEscapeCell(cell){
+function csvEscapeCell(cell) {
   if (cell === null || cell === undefined) return "";
-  const s = String(cell);
-  return `"${s.replace(/"/g, '""')}"`;
+  return `"${String(cell).replace(/"/g, '""')}"`;
 }
 
 async function main() {
+  const items = await loadItems();
+  const knownTotals = await loadKnownTotals();
+  const previousPrices = await loadPreviousPrices();
+  const source = new Source({ region: REGION });
+  let carriedForward = 0;
+
   const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
+  const market = {
+    updated: new Date().toISOString(),
+    region: REGION,
+    generator: "Stalcrafter-X",
+    items: {}
+  };
   const allOutliers = {
     updated: new Date().toISOString(),
     region: REGION,
     outlierDetectionSettings: {
-      madThreshold: OUTLIER_MAD_THRESHOLD,
-      minSamplesForDetection: MIN_SAMPLES_FOR_OUTLIER_DETECTION
+      madThreshold: Number(process.env.OUTLIER_MAD_THRESHOLD || 2.5),
+      minSamplesForDetection: Number(process.env.MIN_SAMPLES_FOR_OUTLIER_DETECTION || 5)
     },
     outliers: []
   };
 
-  for (const [key, id] of Object.entries(ITEMS)) {
+  let banned = false;
+
+  for (const item of items) {
+    const { key, id } = item;
     try {
-      console.log(`Processing ${key} (${id})...`);
-      const rawTrades = await fetchAllHistory(id);
+      process.stdout.write(`Processing ${key} (${id})... `);
 
-      const w24 = computeWindowStats(rawTrades, 1, key);
-      const w7 = computeWindowStats(rawTrades, 7, key);
+      const fetched = await source.fetchHistory(id, {
+        maxPages: MAX_PAGES,
+        windowDays: 7,
+        knownTotal: knownTotals[key] ?? null
+      });
 
-      // Log some debug info for water_carrier
-      if (key === 'water_carrier') {
-        console.log(`Water carrier debug - 24h: ${w24.count} samples, ${w24.cleanCount} clean, avg: ${w24.avg}, mean: ${w24.mean}`);
-        console.log(`Water carrier debug - 7d: ${w7.count} samples, ${w7.cleanCount} clean, avg: ${w7.avg}, mean: ${w7.mean}`);
-      }
+      // Merge into the accumulated history and compute from the union, so a run
+      // that gets mostly stubs still reports on everything captured previously.
+      const { record, added } = await mergeHistory(REGION, id, fetched.prices);
+      const trades = normalise(record.trades);
 
-      // Collect outliers
+      const w24 = computeWindowStats(trades, 1, { key, preNormalised: true });
+      const w7 = computeWindowStats(trades, 7, { key, preNormalised: true });
+      const tiers = qualityTiers(trades, { windowDays: 7, preNormalised: true });
+
       allOutliers.outliers.push(...w24.outliers, ...w7.outliers);
 
+      // A run where the host only returned stubs must never blank out a good
+      // price. Carry the previous entry forward and mark it stale instead.
+      if (!w7.cleanCount && !w24.cleanCount) {
+        const previous = previousPrices[key];
+        if (hasUsablePrice(previous)) {
+          carriedForward++;
+          out.prices[key] = {
+            ...previous,
+            stale: true,
+            staleSince: previous.staleSince ?? out.updated
+          };
+          market.items[key] = {
+            id,
+            label: item.label ?? key,
+            divisor: item.divisor ?? null,
+            stale: true,
+            staleSince: previous.staleSince ?? out.updated,
+            storedTrades: record.count,
+            newTrades: added,
+            acceptedPages: fetched.acceptedPages,
+            rejectedPages: fetched.rejectedPages,
+            note: "no usable trades this run; previous values carried forward"
+          };
+          console.log(`no usable data — kept previous price (stale), ${fetched.rejectedPages} pages rejected`);
+          continue;
+        }
+      }
+
+      // Unchanged shape — the calculator and fetcher.html depend on these keys.
       out.prices[key] = {
         id,
         avg24h: w24.avg,
@@ -309,86 +162,96 @@ async function main() {
         totalUnits7d: w7.totalUnits
       };
 
-      await sleep(BETWEEN_ITEMS_MS);
+      market.items[key] = {
+        id,
+        label: item.label ?? key,
+        divisor: item.divisor ?? null,
+        reportedTotal: fetched.reportedTotal || knownTotals[key] || null,
+        storedTrades: record.count,
+        newTrades: added,
+        acceptedPages: fetched.acceptedPages,
+        rejectedPages: fetched.rejectedPages,
+        windows: {
+          "24h": { avg: w24.avg, median: w24.median, p25: w24.p25, p75: w24.p75, min: w24.min, max: w24.max, count: w24.count, clean: w24.cleanCount, units: w24.totalUnits },
+          "7d": { avg: w7.avg, median: w7.median, p25: w7.p25, p75: w7.p75, min: w7.min, max: w7.max, count: w7.count, clean: w7.cleanCount, units: w7.totalUnits }
+        },
+        quality: { spread: tiers.spread, tiers: tiers.tiers }
+      };
+
+      console.log(
+        `${record.count} stored (+${added} new), ${fetched.acceptedPages} pages ok` +
+          (fetched.rejectedPages ? `, ${fetched.rejectedPages} rejected` : "")
+      );
     } catch (err) {
-      out.prices[key] = { id, error: String(err) };
-      // continue, but keep polite delay
-      await sleep(2000);
+      if (err instanceof BannedError) {
+        console.error(`\n${err.message}`);
+        banned = true;
+        break;
+      }
+      console.log(`failed: ${err.message}`);
+      const previous = previousPrices[key];
+      if (hasUsablePrice(previous)) {
+        carriedForward++;
+        out.prices[key] = { ...previous, stale: true, staleSince: previous.staleSince ?? out.updated, lastError: String(err) };
+      } else {
+        out.prices[key] = { id, error: String(err) };
+      }
+      market.items[key] = { id, error: String(err), stale: hasUsablePrice(previous) };
     }
   }
 
-  // write JSON
-  try {
-    await fs.writeFile(OUTPUT_JSON, JSON.stringify(out, null, 2), "utf8");
-    console.log("Wrote", OUTPUT_JSON);
-  } catch (err) {
-    console.error("Failed to write JSON:", err);
-  }
-
-  // write outliers JSON
-  try {
-    await fs.writeFile(OUTLIERS_JSON, JSON.stringify(allOutliers, null, 2), "utf8");
-    console.log(`Wrote ${OUTLIERS_JSON} with ${allOutliers.outliers.length} outliers detected`);
-  } catch (err) {
-    console.error("Failed to write outliers JSON:", err);
-  }
-
-  // write CSV (header + rows)
-  try {
-    const header = [
-      "key",
-      "id",
-      "avg24h",
-      "mean24h",
-      "median24h",
-      "sampleCountLast24h",
-      "cleanSampleCount24h",
-      "outliersRemoved24h",
-      "min24h",
-      "max24h",
-      "avg7d",
-      "mean7d",
-      "median7d",
-      "sampleCountLast7d",
-      "cleanSampleCount7d",
-      "outliersRemoved7d",
-      "min7d",
-      "max7d",
-      "totalUnits7d"
-    ];
-    const rows = [header];
-    for (const [k, v] of Object.entries(out.prices || {})) {
-      rows.push([
-        k,
-        v.id ?? "",
-        v.avg24h ?? "",
-        v.mean24h ?? "",
-        v.median24h ?? "",
-        v.sampleCountLast24h ?? "",
-        v.cleanSampleCount24h ?? "",
-        v.outliersRemoved24h ?? "",
-        v.min24h ?? "",
-        v.max24h ?? "",
-        v.avg7d ?? "",
-        v.mean7d ?? "",
-        v.median7d ?? "",
-        v.sampleCountLast7d ?? "",
-        v.cleanSampleCount7d ?? "",
-        v.outliersRemoved7d ?? "",
-        v.min7d ?? "",
-        v.max7d ?? "",
-        v.totalUnits7d ?? ""
-      ].map(csvEscapeCell));
+  // A ban breaks the loop early. Anything not reached keeps its previous values
+  // rather than vanishing from the feed.
+  for (const item of items) {
+    if (out.prices[item.key]) continue;
+    const previous = previousPrices[item.key];
+    if (hasUsablePrice(previous)) {
+      carriedForward++;
+      out.prices[item.key] = { ...previous, stale: true, staleSince: previous.staleSince ?? out.updated };
+      market.items[item.key] = { id: item.id, label: item.label ?? item.key, stale: true, note: "run aborted before this item" };
     }
-    const csvText = rows.map(r => r.join(",")).join("\n");
-    await fs.writeFile(OUTPUT_CSV, csvText, "utf8");
-    console.log("Wrote", OUTPUT_CSV);
-  } catch (err) {
-    console.error("Failed to write CSV:", err);
   }
+
+  market.source = {
+    host: "stalcraftdb.net",
+    requests: source.stats.requests,
+    stubsRejected: source.stats.stubs,
+    rateLimitHits: source.stats.rateLimited,
+    carriedForward,
+    banned
+  };
+  out.stale = carriedForward;
+
+  await fs.writeFile(OUTPUT_JSON, JSON.stringify(out, null, 2), "utf8");
+  console.log("Wrote", OUTPUT_JSON);
+  await fs.writeFile(MARKET_JSON, JSON.stringify(market, null, 2), "utf8");
+  console.log("Wrote", MARKET_JSON);
+  await fs.writeFile(OUTLIERS_JSON, JSON.stringify(allOutliers, null, 2), "utf8");
+  console.log(`Wrote ${OUTLIERS_JSON} with ${allOutliers.outliers.length} outliers detected`);
+
+  const header = [
+    "key", "id",
+    "avg24h", "mean24h", "median24h", "sampleCountLast24h", "cleanSampleCount24h", "outliersRemoved24h", "min24h", "max24h",
+    "avg7d", "mean7d", "median7d", "sampleCountLast7d", "cleanSampleCount7d", "outliersRemoved7d", "min7d", "max7d", "totalUnits7d"
+  ];
+  const rows = [header];
+  for (const [k, v] of Object.entries(out.prices)) {
+    rows.push([k, v.id ?? "", ...header.slice(2).map((h) => v[h] ?? "")].map(csvEscapeCell));
+  }
+  await fs.writeFile(OUTPUT_CSV, rows.map((r) => r.join(",")).join("\n"), "utf8");
+  console.log("Wrote", OUTPUT_CSV);
+
+  console.log(
+    `\n${source.stats.requests} requests, ${source.stats.stubs} synthetic responses rejected, ` +
+      `${source.stats.rateLimited} rate-limit hits, ${carriedForward} items kept at their previous price.`
+  );
+
+  // Surface a ban as a workflow failure so it is not silently ignored — but only
+  // after the outputs above are written, so a partial run is still committed.
+  if (banned) process.exit(1);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Fatal error:", err);
   process.exit(1);
 });

@@ -1,11 +1,15 @@
 {
   "name": "stalcraft-poller",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "description": "Polls stalcraftdb auction history and publishes a validated price feed for the Stalcraft crafting calculator.",
   "type": "module",
-  "dependencies": {
-    "node-fetch": "^3.4.0"
-  },
+  "private": true,
   "scripts": {
-    "start": "node fetch_and_compute.js"
-  }
+    "start": "node fetch_and_compute.js",
+    "test": "node --test test/poller.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
 }
