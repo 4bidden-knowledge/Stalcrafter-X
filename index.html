@@ -110,4 +110,140 @@
     { key: "cheap_tool", label: "Cheap tool", id: "wjlrd", divisor: 400 }
   ];
 
-  co
+  const banner = document.getElementById("banner");
+  const tbody = document.querySelector("#itemsTable tbody");
+  const totalCostCell = document.getElementById("totalCost");
+  const totalPremiumCell = document.getElementById("totalPremium");
+  const dataPath = document.getElementById("dataPath");
+  const rawDebug = document.getElementById("rawDebug");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  const SOURCE = "prices.json";
+  const nf = new Intl.NumberFormat("en-US");
+  const fmt = (n) => (Number.isFinite(n) ? nf.format(Math.round(n)) : "—");
+
+  function showBanner(message) {
+    if (!message) { banner.style.display = "none"; return; }
+    banner.textContent = message;
+    banner.style.display = "block";
+  }
+
+  // Prefer the 7-day weighted average; fall back to 24h when the 7-day window
+  // has no clean samples.
+  function unitPriceFor(entry) {
+    if (!entry || entry.error) return { value: null, basis: "unavailable" };
+    if (Number.isFinite(entry.avg7d)) return { value: entry.avg7d, basis: "7d" };
+    if (Number.isFinite(entry.avg24h)) return { value: entry.avg24h, basis: "24h" };
+    return { value: null, basis: "no data" };
+  }
+
+  function render(feed) {
+    const prices = feed?.prices ?? {};
+    tbody.innerHTML = "";
+
+    for (const item of ITEMS) {
+      const entry = prices[item.key];
+      const { value, basis } = unitPriceFor(entry);
+
+      const row = document.createElement("tr");
+      row.dataset.key = item.key;
+
+      const name = document.createElement("td");
+      name.innerHTML = `${item.label}<div class="muted">${item.id}</div>`;
+
+      const unit = document.createElement("td");
+      unit.innerHTML = Number.isFinite(value)
+        ? `${fmt(value)} <span class="muted">(${basis})</span>`
+        : `<span class="muted">${basis}</span>`;
+
+      const qtyCell = document.createElement("td");
+      const qty = document.createElement("input");
+      qty.type = "number";
+      qty.min = "0";
+      qty.step = "1";
+      qty.value = "0";
+      qty.addEventListener("input", recalcTotals);
+      qtyCell.appendChild(qty);
+
+      const perUnit = document.createElement("td");
+      perUnit.textContent = fmt(value);
+
+      const cost = document.createElement("td");
+      cost.className = "cost";
+      cost.textContent = "—";
+
+      const premium = document.createElement("td");
+      premium.className = "premium";
+      premium.textContent = "—";
+
+      row.append(name, unit, qtyCell, perUnit, cost, premium);
+      tbody.appendChild(row);
+
+      row._model = { item, unitPrice: value };
+    }
+
+    recalcTotals();
+  }
+
+  function recalcTotals() {
+    let totalCost = 0;
+    let totalPremium = 0;
+
+    for (const row of tbody.querySelectorAll("tr")) {
+      const model = row._model;
+      if (!model) continue;
+      const qty = Number(row.querySelector("input").value) || 0;
+      const unitPrice = model.unitPrice;
+
+      if (!Number.isFinite(unitPrice)) {
+        row.querySelector(".cost").textContent = "—";
+        row.querySelector(".premium").textContent = "—";
+        continue;
+      }
+
+      const cost = unitPrice * qty;
+      // Premium equivalence: roubles per premium unit differs by item grade.
+      const premium = model.item.divisor ? cost / model.item.divisor : null;
+
+      row.querySelector(".cost").textContent = fmt(cost);
+      row.querySelector(".premium").textContent = premium === null ? "—" : fmt(premium);
+
+      totalCost += cost;
+      if (premium !== null) totalPremium += premium;
+    }
+
+    totalCostCell.textContent = fmt(totalCost);
+    totalPremiumCell.textContent = fmt(totalPremium);
+  }
+
+  async function load() {
+    showBanner(null);
+    dataPath.textContent = SOURCE;
+    try {
+      const resp = await fetch(`${SOURCE}?t=${Date.now()}`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${SOURCE}`);
+      const feed = await resp.json();
+
+      dataPath.textContent = `${SOURCE} — ${feed.region ?? "?"}, updated ${
+        feed.updated ? new Date(feed.updated).toLocaleString() : "unknown"
+      }`;
+      rawDebug.textContent = JSON.stringify(feed, null, 2);
+
+      const missing = ITEMS.filter((i) => !feed.prices?.[i.key] || feed.prices[i.key].error);
+      if (missing.length) {
+        showBanner(`No usable price for: ${missing.map((m) => m.label).join(", ")}.`);
+      }
+
+      render(feed);
+    } catch (err) {
+      showBanner(`Could not load ${SOURCE}: ${err.message}`);
+      render({ prices: {} });
+    }
+  }
+
+  refreshBtn.addEventListener("click", load);
+  await load();
+})();
+</script>
+</body>
+</html>
