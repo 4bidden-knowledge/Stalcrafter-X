@@ -5,7 +5,7 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
-import { inspectPayload } from "../lib/source.js";
+import { inspectPayload, HostHealthBreaker } from "../lib/source.js";
 import { computeWindowStats, qualityTiers, normalise, detectOutliers } from "../lib/stats.js";
 
 const HOUR = 3_600_000;
@@ -141,6 +141,28 @@ test("commodity items with a single tier report no spread", () => {
     additional: { qlt: 0 }
   }));
   assert.equal(qualityTiers(prices, { windowDays: 7 }).spread, null);
+});
+
+/* ------------------------------------------------- host health breaker */
+
+test("the breaker trips only after the threshold of consecutive all-stub items", () => {
+  const breaker = new HostHealthBreaker(3);
+  assert.equal(breaker.record({ acceptedPages: 0, rejectedPages: 2 }), false);
+  assert.equal(breaker.record({ acceptedPages: 0, rejectedPages: 2 }), false);
+  assert.equal(breaker.record({ acceptedPages: 0, rejectedPages: 2 }), true);
+  assert.equal(breaker.tripped, true);
+});
+
+test("any accepted page resets the breaker, including an empty quiet item", () => {
+  const breaker = new HostHealthBreaker(2);
+  breaker.record({ acceptedPages: 0, rejectedPages: 2 });
+  breaker.record({ acceptedPages: 1, rejectedPages: 1 });
+  assert.equal(breaker.tripped, false);
+  breaker.record({ acceptedPages: 0, rejectedPages: 2 });
+  breaker.record({ acceptedPages: 1, rejectedPages: 0 });
+  assert.equal(breaker.tripped, false);
+  breaker.record({ acceptedPages: 0, rejectedPages: 2 });
+  assert.equal(breaker.record({ acceptedPages: 0, rejectedPages: 2 }), true);
 });
 
 /* ------------------------------------------------------------- store */
