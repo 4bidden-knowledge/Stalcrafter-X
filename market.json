@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-17T12:55:40.209Z",
+  "updated": "2026-08-18T01:38:45.631Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -1393,38 +1393,93 @@
       "id": "y5jk",
       "label": "Veiner",
       "divisor": null,
-      "reportedTotal": null,
-      "storedTrades": 0,
-      "newTrades": 0,
-      "acceptedPages": 0,
+      "reportedTotal": 15363,
+      "storedTrades": 200,
+      "newTrades": 200,
+      "acceptedPages": 1,
       "rejectedPages": 2,
       "windows": {
         "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
+          "avg": 16563,
+          "median": 18500,
+          "p25": 4000,
+          "p75": 28750,
+          "min": 3000,
+          "max": 30000,
+          "count": 32,
+          "clean": 17,
+          "units": 17
         },
         "7d": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
+          "avg": 70706,
+          "median": 40000,
+          "p25": 15500,
+          "p75": 83500,
+          "min": 1041,
+          "max": 280000,
+          "count": 200,
+          "clean": 155,
+          "units": 155
         }
       },
       "quality": {
-        "spread": null,
-        "tiers": []
+        "spread": 1538.888888888889,
+        "tiers": [
+          {
+            "quality": 0,
+            "count": 26,
+            "share": 0.13,
+            "avg": 4609,
+            "median": 4500,
+            "min": 1041,
+            "max": 8000
+          },
+          {
+            "quality": 1,
+            "count": 34,
+            "share": 0.17,
+            "avg": 18926,
+            "median": 19250,
+            "min": 7000,
+            "max": 40000
+          },
+          {
+            "quality": 2,
+            "count": 62,
+            "share": 0.31,
+            "avg": 56429,
+            "median": 57222,
+            "min": 18500,
+            "max": 100000
+          },
+          {
+            "quality": 3,
+            "count": 61,
+            "share": 0.305,
+            "avg": 593717,
+            "median": 275000,
+            "min": 75000,
+            "max": 4599999
+          },
+          {
+            "quality": 4,
+            "count": 16,
+            "share": 0.08,
+            "avg": 6964583,
+            "median": 6925000,
+            "min": 4250000,
+            "max": 9999999
+          },
+          {
+            "quality": 5,
+            "count": 1,
+            "share": 0.005,
+            "avg": 22000000,
+            "median": 22000000,
+            "min": 22000000,
+            "max": 22000000
+          }
+        ]
       }
     },
     "scallop": {
@@ -2038,7 +2093,7 @@
   },
   "source": {
     "host": "stalcraftdb.net",
-    "requests": 366,
+    "requests": 367,
     "stubsRejected": 366,
     "rateLimitHits": 0,
     "carriedForward": 11,
