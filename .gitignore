@@ -1,4 +1,12 @@
 node_modules/
+
 run.log
 *.tmp.json
 .claude/
+
+# Local dev proxy - contains a personal API token, never commit
+server.js
+
+*.log
+names_cache.json
+untradeable_ids.json
