@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-20T13:00:53.896Z",
+  "updated": "2026-08-21T01:44:33.870Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
@@ -117,6 +117,15 @@
     {
       "itemKey": "veiner",
       "windowDays": 7,
+      "timestamp": "2026-08-16T03:15:36.000Z",
+      "price": 290000,
+      "amount": 1,
+      "unitPrice": 290000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "veiner",
+      "windowDays": 7,
       "timestamp": "2026-08-15T23:42:44.000Z",
       "price": 300000,
       "amount": 1,
@@ -193,6 +202,15 @@
       "price": 350000,
       "amount": 1,
       "unitPrice": 350000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "veiner",
+      "windowDays": 7,
+      "timestamp": "2026-08-14T20:04:18.000Z",
+      "price": 290000,
+      "amount": 1,
+      "unitPrice": 290000,
       "reason": "MAD_outlier"
     },
     {
@@ -292,51 +310,6 @@
       "price": 480000,
       "amount": 1,
       "unitPrice": 480000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-13T23:51:43.000Z",
-      "price": 22000000,
-      "amount": 1,
-      "unitPrice": 22000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-13T23:42:08.000Z",
-      "price": 5000000,
-      "amount": 1,
-      "unitPrice": 5000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-13T22:38:16.000Z",
-      "price": 7799997,
-      "amount": 1,
-      "unitPrice": 7799997,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-13T19:44:14.000Z",
-      "price": 600000,
-      "amount": 1,
-      "unitPrice": 600000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-13T19:43:23.000Z",
-      "price": 500000,
-      "amount": 1,
-      "unitPrice": 500000,
       "reason": "MAD_outlier"
     }
   ]
