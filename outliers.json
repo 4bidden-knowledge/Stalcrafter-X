@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-21T01:44:33.870Z",
+  "updated": "2026-08-21T12:59:36.710Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
@@ -94,6 +94,15 @@
       "price": 295000,
       "amount": 1,
       "unitPrice": 295000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "veiner",
+      "windowDays": 7,
+      "timestamp": "2026-08-16T07:37:00.000Z",
+      "price": 280000,
+      "amount": 1,
+      "unitPrice": 280000,
       "reason": "MAD_outlier"
     },
     {
@@ -229,87 +238,6 @@
       "price": 450000,
       "amount": 1,
       "unitPrice": 450000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T11:47:10.000Z",
-      "price": 5000000,
-      "amount": 1,
-      "unitPrice": 5000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T10:01:00.000Z",
-      "price": 4100000,
-      "amount": 1,
-      "unitPrice": 4100000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T06:58:21.000Z",
-      "price": 400000,
-      "amount": 1,
-      "unitPrice": 400000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T06:19:22.000Z",
-      "price": 4000000,
-      "amount": 1,
-      "unitPrice": 4000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T06:01:41.000Z",
-      "price": 500000,
-      "amount": 1,
-      "unitPrice": 500000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T05:59:38.000Z",
-      "price": 400000,
-      "amount": 1,
-      "unitPrice": 400000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T04:19:08.000Z",
-      "price": 9999999,
-      "amount": 1,
-      "unitPrice": 9999999,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T03:14:56.000Z",
-      "price": 7877777,
-      "amount": 1,
-      "unitPrice": 7877777,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-14T02:19:08.000Z",
-      "price": 480000,
-      "amount": 1,
-      "unitPrice": 480000,
       "reason": "MAD_outlier"
     }
   ]
