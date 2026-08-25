@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-24T13:02:23.657Z",
+  "updated": "2026-08-25T01:39:48.620Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -1393,85 +1393,13 @@
       "id": "y5jk",
       "label": "Veiner",
       "divisor": null,
-      "reportedTotal": 15363,
+      "stale": true,
+      "staleSince": "2026-08-25T01:39:48.620Z",
       "storedTrades": 200,
       "newTrades": 0,
       "acceptedPages": 0,
       "rejectedPages": 2,
-      "windows": {
-        "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
-        },
-        "7d": {
-          "avg": 15361,
-          "median": 15000,
-          "p25": 4000,
-          "p75": 28750,
-          "min": 3000,
-          "max": 30000,
-          "count": 16,
-          "clean": 9,
-          "units": 9
-        }
-      },
-      "quality": {
-        "spread": 62.5,
-        "tiers": [
-          {
-            "quality": 0,
-            "count": 4,
-            "share": 0.25,
-            "avg": 4000,
-            "median": 4000,
-            "min": 3000,
-            "max": 5000
-          },
-          {
-            "quality": 1,
-            "count": 1,
-            "share": 0.0625,
-            "avg": 15000,
-            "median": 15000,
-            "min": 15000,
-            "max": 15000
-          },
-          {
-            "quality": 2,
-            "count": 4,
-            "share": 0.25,
-            "avg": 26813,
-            "median": 29375,
-            "min": 18500,
-            "max": 30000
-          },
-          {
-            "quality": 3,
-            "count": 5,
-            "share": 0.3125,
-            "avg": 263000,
-            "median": 250000,
-            "min": 240000,
-            "max": 300000
-          },
-          {
-            "quality": 4,
-            "count": 2,
-            "share": 0.125,
-            "avg": 7499999,
-            "median": 7499999,
-            "min": 5999999,
-            "max": 8999999
-          }
-        ]
-      }
+      "note": "no usable trades this run; previous values carried forward"
     },
     "scallop": {
       "id": "4l7p",
@@ -2087,7 +2015,7 @@
     "requests": 366,
     "stubsRejected": 366,
     "rateLimitHits": 0,
-    "carriedForward": 11,
+    "carriedForward": 12,
     "banned": false
   }
 }

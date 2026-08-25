@@ -1,73 +1,9 @@
 {
-  "updated": "2026-08-24T13:02:23.657Z",
+  "updated": "2026-08-25T01:39:48.620Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
     "minSamplesForDetection": 5
   },
-  "outliers": [
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-18T01:39:59.000Z",
-      "price": 240000,
-      "amount": 1,
-      "unitPrice": 240000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T23:10:06.000Z",
-      "price": 250000,
-      "amount": 1,
-      "unitPrice": 250000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T20:31:29.000Z",
-      "price": 275000,
-      "amount": 1,
-      "unitPrice": 275000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T18:19:47.000Z",
-      "price": 5999999,
-      "amount": 1,
-      "unitPrice": 5999999,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T15:13:53.000Z",
-      "price": 250000,
-      "amount": 1,
-      "unitPrice": 250000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T15:05:33.000Z",
-      "price": 300000,
-      "amount": 1,
-      "unitPrice": 300000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "veiner",
-      "windowDays": 7,
-      "timestamp": "2026-08-17T14:36:47.000Z",
-      "price": 8999999,
-      "amount": 1,
-      "unitPrice": 8999999,
-      "reason": "MAD_outlier"
-    }
-  ]
+  "outliers": []
 }
