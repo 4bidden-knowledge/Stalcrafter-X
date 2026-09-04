@@ -1,56 +1,11 @@
 {
-  "updated": "2026-09-04T04:06:05.386Z",
+  "updated": "2026-09-04T16:10:05.544Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
     "minSamplesForDetection": 5
   },
   "outliers": [
-    {
-      "itemKey": "shard",
-      "windowDays": 1,
-      "timestamp": "2026-09-03T12:27:55.000Z",
-      "price": 6500000,
-      "amount": 1,
-      "unitPrice": 6500000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "shard",
-      "windowDays": 1,
-      "timestamp": "2026-09-03T12:21:08.000Z",
-      "price": 2750000,
-      "amount": 1,
-      "unitPrice": 2750000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "shard",
-      "windowDays": 1,
-      "timestamp": "2026-09-03T08:23:30.000Z",
-      "price": 6000000,
-      "amount": 1,
-      "unitPrice": 6000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "shard",
-      "windowDays": 1,
-      "timestamp": "2026-09-03T05:31:21.000Z",
-      "price": 2800000,
-      "amount": 1,
-      "unitPrice": 2800000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "shard",
-      "windowDays": 1,
-      "timestamp": "2026-09-03T04:29:29.000Z",
-      "price": 2700000,
-      "amount": 1,
-      "unitPrice": 2700000,
-      "reason": "MAD_outlier"
-    },
     {
       "itemKey": "shard",
       "windowDays": 7,
@@ -139,6 +94,15 @@
       "price": 2500020,
       "amount": 1,
       "unitPrice": 2500020,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "shard",
+      "windowDays": 7,
+      "timestamp": "2026-09-02T19:25:36.000Z",
+      "price": 2300000,
+      "amount": 1,
+      "unitPrice": 2300000,
       "reason": "MAD_outlier"
     },
     {
@@ -315,6 +279,15 @@
     {
       "itemKey": "shard",
       "windowDays": 7,
+      "timestamp": "2026-08-30T20:46:49.000Z",
+      "price": 2400000,
+      "amount": 1,
+      "unitPrice": 2400000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "shard",
+      "windowDays": 7,
       "timestamp": "2026-08-30T19:20:19.000Z",
       "price": 2800000,
       "amount": 1,
@@ -463,6 +436,24 @@
       "price": 2500000,
       "amount": 1,
       "unitPrice": 2500000,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "shard",
+      "windowDays": 7,
+      "timestamp": "2026-08-29T02:45:39.000Z",
+      "price": 2333333,
+      "amount": 1,
+      "unitPrice": 2333333,
+      "reason": "MAD_outlier"
+    },
+    {
+      "itemKey": "shard",
+      "windowDays": 7,
+      "timestamp": "2026-08-29T02:14:03.000Z",
+      "price": 2200000,
+      "amount": 1,
+      "unitPrice": 2200000,
       "reason": "MAD_outlier"
     },
     {
