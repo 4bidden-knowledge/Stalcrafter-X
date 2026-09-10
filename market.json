@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-10T04:13:56.647Z",
+  "updated": "2026-09-10T16:13:39.641Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -443,76 +443,13 @@
       "id": "5rwq",
       "label": "Shard",
       "divisor": null,
-      "reportedTotal": 17708,
+      "stale": true,
+      "staleSince": "2026-09-10T16:13:39.641Z",
       "storedTrades": 200,
       "newTrades": 0,
       "acceptedPages": 0,
       "rejectedPages": 2,
-      "windows": {
-        "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
-        },
-        "7d": {
-          "avg": 348383,
-          "median": 110000,
-          "p25": 94267,
-          "p75": 362500,
-          "min": 39999,
-          "max": 1600000,
-          "count": 13,
-          "clean": 8,
-          "units": 8
-        }
-      },
-      "quality": {
-        "spread": 26.666666666666668,
-        "tiers": [
-          {
-            "quality": 0,
-            "count": 1,
-            "share": 0.07692307692307693,
-            "avg": 39999,
-            "median": 39999,
-            "min": 39999,
-            "max": 39999
-          },
-          {
-            "quality": 1,
-            "count": 4,
-            "share": 0.3076923076923077,
-            "avg": 99267,
-            "median": 105000,
-            "min": 77067,
-            "max": 110000
-          },
-          {
-            "quality": 2,
-            "count": 3,
-            "share": 0.23076923076923078,
-            "avg": 783333,
-            "median": 399999,
-            "min": 350000,
-            "max": 1600000
-          },
-          {
-            "quality": 3,
-            "count": 5,
-            "share": 0.38461538461538464,
-            "avg": 4150000,
-            "median": 2800000,
-            "min": 2700000,
-            "max": 6500000
-          }
-        ]
-      }
+      "note": "no usable trades this run; previous values carried forward"
     },
     "steel_hedgehog": {
       "id": "5rd1",
@@ -2052,7 +1989,7 @@
     "requests": 366,
     "stubsRejected": 366,
     "rateLimitHits": 0,
-    "carriedForward": 12,
+    "carriedForward": 13,
     "banned": false
   }
 }

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-10T04:13:56.647Z",
+  "updated": "2026-09-10T16:13:39.641Z",
   "region": "na",
   "prices": {
     "adv_spare": {
@@ -421,7 +421,9 @@
       "outliersRemoved7d": 5,
       "min7d": 39999,
       "max7d": 1600000,
-      "totalUnits7d": 8
+      "totalUnits7d": 8,
+      "stale": true,
+      "staleSince": "2026-09-10T16:13:39.641Z"
     },
     "steel_hedgehog": {
       "id": "5rd1",
@@ -1246,5 +1248,5 @@
       "totalUnits7d": 0
     }
   },
-  "stale": 12
+  "stale": 13
 }
