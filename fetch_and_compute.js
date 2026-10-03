@@ -13,9 +13,9 @@
 // rate limit, so see lib/source.js for how both are handled.
 
 import fs from "fs/promises";
-import { Source, BannedError } from "./lib/source.js";
+import { Source, BannedError, HostHealthBreaker } from "./lib/source.js";
 import { computeWindowStats, qualityTiers, normalise } from "./lib/stats.js";
-import { mergeHistory } from "./lib/store.js";
+import { mergeHistory, loadHistory } from "./lib/store.js";
 
 const REGION = process.env.REGION || "na";
 const OUTPUT_JSON = process.env.OUTPUT_JSON || "prices.json";
@@ -69,7 +69,9 @@ async function main() {
   const knownTotals = await loadKnownTotals();
   const previousPrices = await loadPreviousPrices();
   const source = new Source({ region: REGION });
+  const breaker = new HostHealthBreaker(Number(process.env.HOST_DOWN_AFTER || 6));
   let carriedForward = 0;
+  let hostDegraded = false;
 
   const out = { updated: new Date().toISOString(), region: REGION, prices: {} };
   const market = {
@@ -91,15 +93,22 @@ async function main() {
   let banned = false;
 
   for (const item of items) {
+    if (hostDegraded) break;
     const { key, id } = item;
     try {
       process.stdout.write(`Processing ${key} (${id})... `);
 
+      // Items we have previously captured real data for get a bigger retry
+      // budget, since we know asking repeatedly can pay off for them.
+      const stored = await loadHistory(REGION, id);
+      const known = knownTotals[key] ?? (stored.trades.length ? stored.trades.length : null);
+
       const fetched = await source.fetchHistory(id, {
         maxPages: MAX_PAGES,
         windowDays: 7,
-        knownTotal: knownTotals[key] ?? null
+        knownTotal: known
       });
+      if (breaker.record(fetched)) hostDegraded = true;
 
       // Merge into the accumulated history and compute from the union, so a run
       // that gets mostly stubs still reports on everything captured previously.
@@ -200,8 +209,16 @@ async function main() {
     }
   }
 
-  // A ban breaks the loop early. Anything not reached keeps its previous values
-  // rather than vanishing from the feed.
+  if (hostDegraded) {
+    console.warn(
+      `
+Stopped early: ${breaker.consecutive} consecutive items returned nothing but synthetic pages, ` +
+        `so the host is refusing this client or is degraded. Remaining items keep their previous prices.`
+    );
+  }
+
+  // A ban or a degraded host breaks the loop early. Anything not reached keeps
+  // its previous values rather than vanishing from the feed.
   for (const item of items) {
     if (out.prices[item.key]) continue;
     const previous = previousPrices[item.key];
@@ -218,6 +235,7 @@ async function main() {
     stubsRejected: source.stats.stubs,
     rateLimitHits: source.stats.rateLimited,
     carriedForward,
+    hostDegraded,
     banned
   };
   out.stale = carriedForward;
