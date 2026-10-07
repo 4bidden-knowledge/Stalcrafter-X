@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-06T18:13:09.808Z",
+  "updated": "2026-10-07T05:31:27.715Z",
   "region": "na",
   "prices": {
     "adv_spare": {
@@ -463,7 +463,9 @@
       "outliersRemoved7d": 2,
       "min7d": 75000,
       "max7d": 5999999,
-      "totalUnits7d": 7
+      "totalUnits7d": 7,
+      "stale": true,
+      "staleSince": "2026-10-07T05:31:27.715Z"
     },
     "prism": {
       "id": "y5w3",
@@ -475,15 +477,15 @@
       "outliersRemoved24h": 0,
       "min24h": null,
       "max24h": null,
-      "avg7d": 2978843,
-      "mean7d": 2978843,
-      "median7d": 2110000,
-      "sampleCountLast7d": 84,
-      "cleanSampleCount7d": 75,
-      "outliersRemoved7d": 9,
+      "avg7d": 3084959,
+      "mean7d": 3084959,
+      "median7d": 2500000,
+      "sampleCountLast7d": 70,
+      "cleanSampleCount7d": 62,
+      "outliersRemoved7d": 8,
       "min7d": 200000,
       "max7d": 8499999,
-      "totalUnits7d": 75
+      "totalUnits7d": 62
     },
     "bubblegum": {
       "id": "qodk",
@@ -1248,5 +1250,5 @@
       "totalUnits7d": 0
     }
   },
-  "stale": 13
+  "stale": 14
 }

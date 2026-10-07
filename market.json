@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-06T18:13:09.808Z",
+  "updated": "2026-10-07T05:31:27.715Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -493,76 +493,13 @@
       "id": "kqoj",
       "label": "Heel",
       "divisor": null,
-      "reportedTotal": 9405,
+      "stale": true,
+      "staleSince": "2026-10-07T05:31:27.715Z",
       "storedTrades": 200,
       "newTrades": 0,
       "acceptedPages": 0,
       "rejectedPages": 2,
-      "windows": {
-        "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
-        },
-        "7d": {
-          "avg": 1381357,
-          "median": 115000,
-          "p25": 99750,
-          "p75": 1640000,
-          "min": 75000,
-          "max": 5999999,
-          "count": 9,
-          "clean": 7,
-          "units": 7
-        }
-      },
-      "quality": {
-        "spread": 15.54585152838428,
-        "tiers": [
-          {
-            "quality": 0,
-            "count": 1,
-            "share": 0.1111111111111111,
-            "avg": 85000,
-            "median": 85000,
-            "min": 85000,
-            "max": 85000
-          },
-          {
-            "quality": 1,
-            "count": 3,
-            "share": 0.3333333333333333,
-            "avg": 101500,
-            "median": 114500,
-            "min": 75000,
-            "max": 115000
-          },
-          {
-            "quality": 2,
-            "count": 3,
-            "share": 0.3333333333333333,
-            "avg": 3093333,
-            "median": 1780000,
-            "min": 1500000,
-            "max": 5999999
-          },
-          {
-            "quality": 3,
-            "count": 2,
-            "share": 0.2222222222222222,
-            "avg": 25000000,
-            "median": 25000000,
-            "min": 15000000,
-            "max": 35000000
-          }
-        ]
-      }
+      "note": "no usable trades this run; previous values carried forward"
     },
     "prism": {
       "id": "y5w3",
@@ -586,60 +523,60 @@
           "units": 0
         },
         "7d": {
-          "avg": 2978843,
-          "median": 2110000,
-          "p25": 410000,
-          "p75": 6225000,
+          "avg": 3084959,
+          "median": 2500000,
+          "p25": 400000,
+          "p75": 6487500,
           "min": 200000,
           "max": 8499999,
-          "count": 84,
-          "clean": 75,
-          "units": 75
+          "count": 70,
+          "clean": 62,
+          "units": 62
         }
       },
       "quality": {
-        "spread": 133.9712918660287,
+        "spread": 140.47619047619048,
         "tiers": [
           {
             "quality": 0,
-            "count": 8,
-            "share": 0.09523809523809523,
-            "avg": 291500,
-            "median": 209000,
+            "count": 7,
+            "share": 0.1,
+            "avg": 303429,
+            "median": 210000,
             "min": 200000,
             "max": 880000
           },
           {
             "quality": 1,
-            "count": 33,
-            "share": 0.39285714285714285,
-            "avg": 1044431,
-            "median": 490000,
+            "count": 26,
+            "share": 0.37142857142857144,
+            "avg": 1117055,
+            "median": 467222,
             "min": 269999,
             "max": 3000000
           },
           {
             "quality": 2,
-            "count": 31,
-            "share": 0.36904761904761907,
-            "avg": 5999677,
-            "median": 6900001,
+            "count": 27,
+            "share": 0.38571428571428573,
+            "avg": 5914444,
+            "median": 6900000,
             "min": 3500000,
             "max": 8499999
           },
           {
             "quality": 3,
-            "count": 7,
-            "share": 0.08333333333333333,
-            "avg": 29142143,
-            "median": 28000000,
-            "min": 21000000,
+            "count": 6,
+            "share": 0.08571428571428572,
+            "avg": 30499167,
+            "median": 29500000,
+            "min": 23000000,
             "max": 37999999
           },
           {
             "quality": 4,
             "count": 2,
-            "share": 0.023809523809523808,
+            "share": 0.02857142857142857,
             "avg": 135000000,
             "median": 135000000,
             "min": 120000000,
@@ -647,12 +584,12 @@
           },
           {
             "quality": "unknown",
-            "count": 3,
-            "share": 0.03571428571428571,
-            "avg": 208333,
-            "median": 210000,
+            "count": 2,
+            "share": 0.02857142857142857,
+            "avg": 205000,
+            "median": 205000,
             "min": 200000,
-            "max": 215000
+            "max": 210000
           }
         ]
       }
@@ -2081,7 +2018,7 @@
     "requests": 366,
     "stubsRejected": 366,
     "rateLimitHits": 0,
-    "carriedForward": 13,
+    "carriedForward": 14,
     "banned": false
   }
 }

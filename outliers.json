@@ -1,29 +1,11 @@
 {
-  "updated": "2026-10-06T18:13:09.808Z",
+  "updated": "2026-10-07T05:31:27.715Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
     "minSamplesForDetection": 5
   },
   "outliers": [
-    {
-      "itemKey": "heel",
-      "windowDays": 7,
-      "timestamp": "2026-09-30T02:50:56.000Z",
-      "price": 15000000,
-      "amount": 1,
-      "unitPrice": 15000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "heel",
-      "windowDays": 7,
-      "timestamp": "2026-09-30T00:07:13.000Z",
-      "price": 35000000,
-      "amount": 1,
-      "unitPrice": 35000000,
-      "reason": "MAD_outlier"
-    },
     {
       "itemKey": "prism",
       "windowDays": 7,
@@ -94,15 +76,6 @@
       "price": 26000000,
       "amount": 1,
       "unitPrice": 26000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "prism",
-      "windowDays": 7,
-      "timestamp": "2026-09-29T20:55:01.000Z",
-      "price": 21000000,
-      "amount": 1,
-      "unitPrice": 21000000,
       "reason": "MAD_outlier"
     }
   ]
