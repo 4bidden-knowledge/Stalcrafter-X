@@ -1,28 +1,9 @@
 {
-  "updated": "2026-10-10T17:13:54.480Z",
+  "updated": "2026-10-11T05:21:40.046Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
     "minSamplesForDetection": 5
   },
-  "outliers": [
-    {
-      "itemKey": "prism",
-      "windowDays": 7,
-      "timestamp": "2026-10-04T14:05:18.000Z",
-      "price": 7000000,
-      "amount": 1,
-      "unitPrice": 7000000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "prism",
-      "windowDays": 7,
-      "timestamp": "2026-10-03T23:33:12.000Z",
-      "price": 8499999,
-      "amount": 1,
-      "unitPrice": 8499999,
-      "reason": "MAD_outlier"
-    }
-  ]
+  "outliers": []
 }
