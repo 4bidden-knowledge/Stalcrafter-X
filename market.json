@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17T20:42:57.568Z",
+  "updated": "2026-11-18T06:57:19.717Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -215,38 +215,84 @@
       "id": "wglp",
       "label": "Viburnum Branch",
       "divisor": null,
-      "reportedTotal": null,
-      "storedTrades": 0,
-      "newTrades": 0,
-      "acceptedPages": 0,
-      "rejectedPages": 2,
+      "reportedTotal": 13495,
+      "storedTrades": 200,
+      "newTrades": 200,
+      "acceptedPages": 1,
+      "rejectedPages": 0,
       "windows": {
         "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
+          "avg": 561428,
+          "median": 530000,
+          "p25": 150000,
+          "p75": 724999,
+          "min": 150000,
+          "max": 1500000,
+          "count": 10,
+          "clean": 7,
+          "units": 7
         },
         "7d": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
+          "avg": 539450,
+          "median": 505000,
+          "p25": 136000,
+          "p75": 700000,
+          "min": 80000,
+          "max": 2500000,
+          "count": 79,
+          "clean": 56,
+          "units": 56
         }
       },
       "quality": {
-        "spread": null,
-        "tiers": []
+        "spread": 175,
+        "tiers": [
+          {
+            "quality": 0,
+            "count": 6,
+            "share": 0.0759493670886076,
+            "avg": 84167,
+            "median": 80000,
+            "min": 80000,
+            "max": 95000
+          },
+          {
+            "quality": 1,
+            "count": 24,
+            "share": 0.3037974683544304,
+            "avg": 362190,
+            "median": 148000,
+            "min": 100000,
+            "max": 1800000
+          },
+          {
+            "quality": 2,
+            "count": 37,
+            "share": 0.46835443037974683,
+            "avg": 1705751,
+            "median": 750000,
+            "min": 500000,
+            "max": 4999999
+          },
+          {
+            "quality": 3,
+            "count": 11,
+            "share": 0.13924050632911392,
+            "avg": 14042222,
+            "median": 14000000,
+            "min": 10500000,
+            "max": 19450000
+          },
+          {
+            "quality": 4,
+            "count": 1,
+            "share": 0.012658227848101266,
+            "avg": 110000000,
+            "median": 110000000,
+            "min": 110000000,
+            "max": 110000000
+          }
+        ]
       }
     },
     "sun": {
@@ -1934,8 +1980,8 @@
   },
   "source": {
     "host": "stalcraftdb.net",
-    "requests": 366,
-    "stubsRejected": 366,
+    "requests": 361,
+    "stubsRejected": 360,
     "rateLimitHits": 0,
     "carriedForward": 15,
     "banned": false
