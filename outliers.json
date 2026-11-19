@@ -1,29 +1,11 @@
 {
-  "updated": "2026-11-18T20:17:39.854Z",
+  "updated": "2026-11-19T06:57:53.356Z",
   "region": "na",
   "outlierDetectionSettings": {
     "madThreshold": 2.5,
     "minSamplesForDetection": 5
   },
   "outliers": [
-    {
-      "itemKey": "viburnum_branch",
-      "windowDays": 1,
-      "timestamp": "2026-11-18T03:14:44.000Z",
-      "price": 10500000,
-      "amount": 1,
-      "unitPrice": 10500000,
-      "reason": "MAD_outlier"
-    },
-    {
-      "itemKey": "viburnum_branch",
-      "windowDays": 1,
-      "timestamp": "2026-11-18T01:31:42.000Z",
-      "price": 110000000,
-      "amount": 1,
-      "unitPrice": 110000000,
-      "reason": "MAD_outlier"
-    },
     {
       "itemKey": "viburnum_branch",
       "windowDays": 7,
