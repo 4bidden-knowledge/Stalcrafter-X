@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-24T22:13:59.429Z",
+  "updated": "2026-11-25T08:01:00.031Z",
   "region": "na",
   "generator": "Stalcrafter-X",
   "items": {
@@ -215,76 +215,13 @@
       "id": "wglp",
       "label": "Viburnum Branch",
       "divisor": null,
-      "reportedTotal": 13495,
+      "stale": true,
+      "staleSince": "2026-11-25T08:01:00.031Z",
       "storedTrades": 200,
       "newTrades": 0,
       "acceptedPages": 0,
       "rejectedPages": 2,
-      "windows": {
-        "24h": {
-          "avg": null,
-          "median": null,
-          "p25": null,
-          "p75": null,
-          "min": null,
-          "max": null,
-          "count": 0,
-          "clean": 0,
-          "units": 0
-        },
-        "7d": {
-          "avg": 1156852,
-          "median": 714999,
-          "p25": 245000,
-          "p75": 1350000,
-          "min": 150000,
-          "max": 3711111,
-          "count": 8,
-          "clean": 6,
-          "units": 6
-        }
-      },
-      "quality": {
-        "spread": null,
-        "tiers": [
-          {
-            "quality": 1,
-            "count": 4,
-            "share": 0.5,
-            "avg": 675000,
-            "median": 524999,
-            "min": 150000,
-            "max": 1500000
-          },
-          {
-            "quality": 2,
-            "count": 2,
-            "share": 0.25,
-            "avg": 2120556,
-            "median": 2120556,
-            "min": 530000,
-            "max": 3711111
-          },
-          {
-            "quality": 3,
-            "count": 1,
-            "share": 0.125,
-            "avg": 10500000,
-            "median": 10500000,
-            "min": 10500000,
-            "max": 10500000
-          },
-          {
-            "quality": 4,
-            "count": 1,
-            "share": 0.125,
-            "avg": 110000000,
-            "median": 110000000,
-            "min": 110000000,
-            "max": 110000000
-          }
-        ]
-      }
+      "note": "no usable trades this run; previous values carried forward"
     },
     "sun": {
       "id": "qoq6",
@@ -482,7 +419,7 @@
       "divisor": null,
       "stale": true,
       "staleSince": "2026-09-10T16:13:39.641Z",
-      "storedTrades": 179,
+      "storedTrades": 165,
       "newTrades": 0,
       "acceptedPages": 0,
       "rejectedPages": 2,
@@ -1974,7 +1911,7 @@
     "requests": 366,
     "stubsRejected": 366,
     "rateLimitHits": 0,
-    "carriedForward": 15,
+    "carriedForward": 16,
     "banned": false
   }
 }
